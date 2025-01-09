@@ -3,6 +3,13 @@ import { PrismaClient, Tournament } from '@prisma/client';
 
 @Injectable()
 export class TournamentsService extends PrismaClient implements OnModuleInit {
+  constructor() {
+    super({
+      log: ['query', 'info', 'warn', 'error'],
+      errorFormat: 'pretty',
+    });
+  }
+
   async onModuleInit() {
     await this.$connect();
   }
