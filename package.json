@@ -10,7 +10,7 @@
   },
   "packageManager": "npm@10.9.2",
   "scripts": {
-    "build": "nest build",
+    "build": "prisma migrate deploy && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
