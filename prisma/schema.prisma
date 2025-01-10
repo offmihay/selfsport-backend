@@ -24,18 +24,18 @@ model Tournament {
   dateEnd         DateTime @map("date_end") @db.Timestamptz()
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt       DateTime @map("updated_at") @db.Timestamptz()
-  entryFee        Decimal  @map("entry_fee")
-  prizePool       Decimal  @map("prize_pool")
-  minAge          Int      @map("min_age")
-  maxAge          Int      @map("max_age")
-  skillLevel      String   @map("skill_level")
-  format          String
-  maxParticipants Int      @map("max_participants")
+  entryFee        Decimal? @map("entry_fee")
+  prizePool       Decimal? @map("prize_pool")
+  minAge          Int?     @map("min_age")
+  maxAge          Int?     @map("max_age")
+  skillLevel      String?  @map("skill_level")
+  format          String?
+  maxParticipants Int?     @map("max_participants")
   title           String
   description     String
   status          String
   images          Image[]
-  rules           String
+  rules           String?
 
   @@map("tournaments")
 }
@@ -43,7 +43,7 @@ model Tournament {
 model Image {
   id           String     @id @default(uuid(7)) @db.Uuid
   createdAt    DateTime   @map("created_at") @db.Timestamptz()
-  url          String
+  url          String?
   secureUrl    String     @map("secure_url")
   tournamentId String     @map("tournament_id") @db.Uuid
   tournament   Tournament @relation(fields: [tournamentId], references: [id])

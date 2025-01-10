@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "tournaments" ALTER COLUMN "entry_fee" DROP NOT NULL,
+ALTER COLUMN "prize_pool" DROP NOT NULL,
+ALTER COLUMN "min_age" DROP NOT NULL,
+ALTER COLUMN "max_age" DROP NOT NULL,
+ALTER COLUMN "skill_level" DROP NOT NULL,
+ALTER COLUMN "format" DROP NOT NULL,
+ALTER COLUMN "max_participants" DROP NOT NULL,
+ALTER COLUMN "rules" DROP NOT NULL;
