@@ -22,15 +22,17 @@ export class TournamentsService extends PrismaClient implements OnModuleInit {
     });
 
     const extendedTournaments = tournaments.map((tournament) => {
-      return {
-        ...tournament,
+      const { latitude, longitude, minAge, maxAge, ...rest } = tournament;
+
+      const modifiedTournament = {
+        ...rest,
         geoCoordinates: {
-          latitude: tournament.latitude,
-          longitude: tournament.longitude,
+          latitude,
+          longitude,
         },
         ageRestrictions: {
-          minAge: tournament.minAge,
-          maxAge: tournament.maxAge,
+          minAge,
+          maxAge,
         },
         currentParticipants: {
           count: 12,
@@ -55,6 +57,8 @@ export class TournamentsService extends PrismaClient implements OnModuleInit {
           verified: true,
         },
       };
+
+      return modifiedTournament;
     });
 
     return extendedTournaments;
