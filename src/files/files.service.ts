@@ -30,4 +30,8 @@ export class FilesService {
       stream.pipe(transformStream);
     });
   }
+
+  getResourcesByPublicIds(publicIds: string[]) {
+    return cloudinary.api.resources_by_ids(publicIds);
+  }
 }

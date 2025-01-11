@@ -23,7 +23,7 @@ model Tournament {
   dateStart       DateTime @map("date_start") @db.Timestamptz()
   dateEnd         DateTime @map("date_end") @db.Timestamptz()
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt       DateTime @map("updated_at") @db.Timestamptz()
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz()
   entryFee        Decimal? @map("entry_fee")
   prizePool       Decimal? @map("prize_pool")
   minAge          Int?     @map("min_age")
@@ -43,6 +43,7 @@ model Tournament {
 model Image {
   id           String     @id @default(uuid(7)) @db.Uuid
   createdAt    DateTime   @map("created_at") @db.Timestamptz()
+  publicId     String?     @map("public_id")
   url          String?
   secureUrl    String     @map("secure_url")
   tournamentId String     @map("tournament_id") @db.Uuid
