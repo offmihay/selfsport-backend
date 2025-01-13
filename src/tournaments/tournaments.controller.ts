@@ -35,7 +35,7 @@ export class TournamentsController {
   async createTournament(@Body() dto: TournamentCreateDto) {
     const publicIds = dto.images?.map((image) => image.publicId);
 
-    const resources = publicIds
+    const resources = publicIds?.length
       ? (await this.filesService.getResourcesByPublicIds(publicIds)).resources
       : [];
 
