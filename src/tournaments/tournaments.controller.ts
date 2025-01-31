@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Delete,
+  Put,
   Post,
   NotFoundException,
   Param,
@@ -29,6 +31,43 @@ export class TournamentsController {
       throw new NotFoundException(`Tournament with id ${id} not found`);
     }
     return tournament;
+  }
+
+  @Delete(':id')
+  async DeleteTournament(@Param('id') id: string) {
+    const response = await this.tournamentsService.deleteTournament(id);
+    if (!response) {
+      throw new NotFoundException(`Tournament with id ${id} not found`);
+    }
+    return response;
+  }
+
+  @Put(':id')
+  async UpdateTournament(
+    @Param('id') id: string,
+    @Body() dto: TournamentCreateDto,
+  ) {
+    const publicIds = dto.images?.map((image) => image.publicId);
+
+    const resources = publicIds?.length
+      ? (await this.filesService.getResourcesByPublicIds(publicIds)).resources
+      : [];
+
+    const images = resources.map((r) => ({
+      createdAt: r.created_at,
+      publicId: r.public_id,
+      url: r.url,
+      secureUrl: r.secure_url,
+    }));
+
+    const response = await this.tournamentsService.updateTournament(id, {
+      ...dto,
+      images,
+    });
+    if (!response) {
+      throw new NotFoundException(`Tournament with id ${id} not found`);
+    }
+    return response;
   }
 
   @Post()

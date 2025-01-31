@@ -62,6 +62,52 @@ export class TournamentsService
     return tournament ? addTournamentExtraProps(tournament) : null;
   }
 
+  async deleteTournament(id: string): Promise<{ message: string } | null> {
+    const tournament = await this.tournament.findUnique({
+      where: { id },
+      include: {
+        images: true,
+      },
+    });
+
+    if (tournament) {
+      await this.tournament.delete({
+        where: { id },
+      });
+      return { message: 'Tournament was deleted succesfully' };
+    }
+    return null;
+  }
+
+  async updateTournament(
+    id: string,
+    data: TournamentCreateModel,
+  ): Promise<TournamentModel | null> {
+    const { geoCoordinates, ageRestrictions, images, ...rest } = data;
+
+    const tournament = await this.tournament.findUnique({
+      where: { id },
+    });
+
+    if (tournament) {
+      await this.tournament.update({
+        where: { id },
+        data: {
+          ...rest,
+          latitude: geoCoordinates.latitude,
+          longitude: geoCoordinates.longitude,
+          minAge: ageRestrictions?.minAge,
+          maxAge: ageRestrictions?.maxAge,
+          images: {
+            create: images,
+          },
+        },
+      });
+      return await this.getTournamentById(tournament.id);
+    }
+    return null;
+  }
+
   async createTournament(data: TournamentCreateModel) {
     const { geoCoordinates, ageRestrictions, images, ...rest } = data;
 
