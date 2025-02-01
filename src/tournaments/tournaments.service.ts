@@ -65,12 +65,13 @@ export class TournamentsService
   async deleteTournament(id: string): Promise<{ message: string } | null> {
     const tournament = await this.tournament.findUnique({
       where: { id },
-      include: {
-        images: true,
-      },
     });
 
     if (tournament) {
+      await this.image.deleteMany({
+        where: { tournamentId: id },
+      });
+
       await this.tournament.delete({
         where: { id },
       });
@@ -90,6 +91,10 @@ export class TournamentsService
     });
 
     if (tournament) {
+      await this.image.deleteMany({
+        where: { tournamentId: id },
+      });
+
       await this.tournament.update({
         where: { id },
         data: {
