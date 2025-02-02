@@ -11,6 +11,7 @@ import {
 import { TournamentsService } from './tournaments.service';
 import { FilesService } from 'src/files/files.service';
 import { TournamentCreateDto } from './tournaments.dto';
+import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 
 @Controller('tournaments')
 export class TournamentsController {
@@ -18,6 +19,7 @@ export class TournamentsController {
     private readonly tournamentsService: TournamentsService,
     private readonly filesService: FilesService,
   ) {}
+
   @Get()
   async getTournaments() {
     return await this.tournamentsService.getTournaments();
@@ -70,7 +72,10 @@ export class TournamentsController {
   }
 
   @Post()
-  async createTournament(@Body() dto: TournamentCreateDto) {
+  async createTournament(
+    @Body() dto: TournamentCreateDto,
+    @CurrentUserId() currentUserId: string,
+  ) {
     const publicIds = dto.images?.map((image) => image.publicId);
 
     const resources = publicIds?.length
@@ -83,6 +88,8 @@ export class TournamentsController {
       url: r.url,
       secureUrl: r.secure_url,
     }));
+
+    console.log('Current user:', currentUserId);
 
     return await this.tournamentsService.createTournament({
       ...dto,
