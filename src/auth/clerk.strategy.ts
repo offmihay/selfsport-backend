@@ -4,14 +4,11 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-custom';
 import { Request } from 'express';
-import { ClerkClient } from '@clerk/backend';
-// import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
   constructor(
     @Inject('ClerkClient')
-    private readonly clerkClient: ClerkClient,
     private readonly configService: ConfigService,
   ) {
     super();

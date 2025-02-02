@@ -7,6 +7,7 @@ import {
   Post,
   NotFoundException,
   Param,
+  ForbiddenException,
 } from '@nestjs/common';
 import { TournamentsService } from './tournaments.service';
 import { FilesService } from 'src/files/files.service';
@@ -45,9 +46,15 @@ export class TournamentsController {
 
   @Put(':id')
   async UpdateTournament(
+    @CurrentUserId() userId: string,
     @Param('id') id: string,
     @Body() dto: TournamentCreateDto,
   ) {
+    const tournament = await this.tournamentsService.getTournamentById(id);
+    if (tournament?.createdBy !== userId) {
+      throw new ForbiddenException();
+    }
+
     const publicIds = dto.images?.map((image) => image.publicId);
 
     const resources = publicIds?.length
@@ -74,7 +81,7 @@ export class TournamentsController {
   @Post()
   async createTournament(
     @Body() dto: TournamentCreateDto,
-    @CurrentUserId() currentUserId: string,
+    @CurrentUserId() userId: string,
   ) {
     const publicIds = dto.images?.map((image) => image.publicId);
 
@@ -92,7 +99,7 @@ export class TournamentsController {
     return await this.tournamentsService.createTournament({
       ...dto,
       images,
-      createdBy: currentUserId,
+      createdBy: userId,
     });
   }
 }
