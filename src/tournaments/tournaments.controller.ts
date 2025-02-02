@@ -18,7 +18,6 @@ export class TournamentsController {
     private readonly tournamentsService: TournamentsService,
     private readonly filesService: FilesService,
   ) {}
-
   @Get()
   async getTournaments() {
     return await this.tournamentsService.getTournaments();
