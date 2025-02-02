@@ -89,11 +89,10 @@ export class TournamentsController {
       secureUrl: r.secure_url,
     }));
 
-    console.log('Current user:', currentUserId);
-
     return await this.tournamentsService.createTournament({
       ...dto,
       images,
+      createdBy: currentUserId,
     });
   }
 }

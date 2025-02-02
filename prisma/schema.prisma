@@ -36,6 +36,7 @@ model Tournament {
   status          String
   images          Image[]
   rules           String?
+  createdBy       String?  @map("created_by")
 
   @@map("tournaments")
 }
@@ -43,7 +44,7 @@ model Tournament {
 model Image {
   id           String     @id @default(uuid(7)) @db.Uuid
   createdAt    DateTime   @map("created_at") @db.Timestamptz()
-  publicId     String?     @map("public_id")
+  publicId     String?    @map("public_id")
   url          String?
   secureUrl    String     @map("secure_url")
   tournamentId String     @map("tournament_id") @db.Uuid
