@@ -8,7 +8,7 @@ import {
 import { Prisma, PrismaClient } from '@prisma/client';
 
 type TournamentWithImages = Prisma.TournamentGetPayload<{
-  include: { images: true; user: true };
+  include: { images: true; user: true; participants: true };
 }>;
 
 type TournamentModel = ReturnType<typeof addTournamentExtraProps>;
@@ -54,6 +54,7 @@ export class TournamentsService
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
+        participants: true,
       },
     });
 
@@ -64,6 +65,7 @@ export class TournamentsService
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
+        participants: true,
       },
       where: {
         createdBy: userId,
@@ -79,6 +81,7 @@ export class TournamentsService
       include: {
         images: true,
         user: true,
+        participants: true,
       },
     });
 
@@ -154,10 +157,39 @@ export class TournamentsService
 
     return await this.getTournamentById(tournament.id);
   }
+
+  async isUserParticipating(id: string, userId: string): Promise<boolean> {
+    const usersCount = await this.tournament.count({
+      where: {
+        id,
+        participants: {
+          some: {
+            id: userId,
+          },
+        },
+      },
+    });
+    return !!usersCount;
+  }
+
+  async register(id: string, userId: string): Promise<TournamentModel | null> {
+    const tournament = await this.tournament.update({
+      where: { id },
+      data: { participants: { connect: { id: userId } } },
+      include: {
+        participants: true,
+        user: true,
+        images: true,
+      },
+    });
+
+    return tournament ? addTournamentExtraProps(tournament) : null;
+  }
 }
 
 const addTournamentExtraProps = (tournament: TournamentWithImages) => {
-  const { latitude, longitude, minAge, maxAge, user, ...rest } = tournament;
+  const { latitude, longitude, minAge, maxAge, user, participants, ...rest } =
+    tournament;
 
   return {
     ...rest,
@@ -169,21 +201,9 @@ const addTournamentExtraProps = (tournament: TournamentWithImages) => {
       minAge,
       maxAge,
     },
-    currentParticipants: {
-      count: 12,
-      participants: [
-        {
-          id: 'uuid1',
-          name: 'John Doe',
-        },
-        {
-          id: 'uuid2',
-          name: 'Jane Smith',
-        },
-      ],
-    },
     organizer: {
       ...user,
     },
+    participants: participants.length,
   };
 };

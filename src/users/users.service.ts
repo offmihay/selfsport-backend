@@ -30,7 +30,10 @@ export class UsersService
 
   async createUser(data: UsersCreateModel) {
     await this.user.create({
-      data: { ...data, email: data.email || 'test@test.com' },
+      data: {
+        ...data,
+        email: data.email || `test${new Date().getTime()}@test.com`,
+      },
     });
     return data;
   }

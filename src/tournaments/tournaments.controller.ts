@@ -8,6 +8,7 @@ import {
   NotFoundException,
   Param,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { TournamentsService } from './tournaments.service';
 import { FilesService } from 'src/files/files.service';
@@ -26,6 +27,26 @@ export class TournamentsController {
   @Get()
   async getTournaments() {
     return await this.tournamentsService.getTournaments();
+  }
+
+  @Post(':id/register')
+  async register(@Param('id') id: string, @CurrentUserId() userId: string) {
+    const user = await this.usersService.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      await this.usersService.createUser({ id: userId });
+    }
+
+    const isUserParticipating =
+      await this.tournamentsService.isUserParticipating(id, userId);
+
+    if (isUserParticipating) {
+      throw new ConflictException(
+        'User is already registered for this tournament',
+      );
+    }
+    return await this.tournamentsService.register(id, userId);
   }
 
   @Get('created')
@@ -69,6 +90,7 @@ export class TournamentsController {
     if (!user) {
       await this.usersService.createUser({ id: userId });
     }
+
     const images = await this.filesService.transformImages(dto.images);
 
     const response = await this.tournamentsService.updateTournament(id, {
