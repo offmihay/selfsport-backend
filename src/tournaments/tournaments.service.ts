@@ -8,7 +8,7 @@ import {
 import { Prisma, PrismaClient } from '@prisma/client';
 
 type TournamentWithImages = Prisma.TournamentGetPayload<{
-  include: { images: true };
+  include: { images: true; user: true };
 }>;
 
 type TournamentModel = ReturnType<typeof addTournamentExtraProps>;
@@ -60,11 +60,25 @@ export class TournamentsService
     return tournaments.map(addTournamentExtraProps);
   }
 
+  async getCreatedTournaments(userId: string): Promise<TournamentModel[]> {
+    const tournaments = await this.tournament.findMany({
+      include: {
+        images: true,
+      },
+      where: {
+        createdBy: userId,
+      },
+    });
+
+    return tournaments.map(addTournamentExtraProps);
+  }
+
   async getTournamentById(id: string): Promise<TournamentModel | null> {
     const tournament = await this.tournament.findUnique({
       where: { id },
       include: {
         images: true,
+        user: true,
       },
     });
 
@@ -143,7 +157,7 @@ export class TournamentsService
 }
 
 const addTournamentExtraProps = (tournament: TournamentWithImages) => {
-  const { latitude, longitude, minAge, maxAge, ...rest } = tournament;
+  const { latitude, longitude, minAge, maxAge, user, ...rest } = tournament;
 
   return {
     ...rest,
@@ -169,13 +183,7 @@ const addTournamentExtraProps = (tournament: TournamentWithImages) => {
       ],
     },
     organizer: {
-      id: 'organizerId',
-      name: 'Club XYZ',
-      contact: {
-        email: 'contact@clubxyz.com',
-        phone: '+1234567890',
-      },
-      verified: true,
+      ...user,
     },
   };
 };
