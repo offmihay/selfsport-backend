@@ -69,14 +69,13 @@ export class TournamentsController {
   @Post()
   async createTournament(
     @Body() dto: TournamentCreateDto,
-    @CurrentUserId() userId: string,
+    // @CurrentUserId() userId: string,
   ) {
     const images = await this.filesService.transformImages(dto.images);
 
     return await this.tournamentsService.createTournament({
       ...dto,
       images,
-      createdBy: userId,
     });
   }
 }

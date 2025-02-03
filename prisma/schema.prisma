@@ -36,7 +36,8 @@ model Tournament {
   status          String
   images          Image[]
   rules           String?
-  createdBy       String?  @map("created_by")
+  createdBy       String   @map("created_by")
+  user            User     @relation(fields: [createdBy], references: [id])
 
   @@map("tournaments")
 }
@@ -51,4 +52,18 @@ model Image {
   tournament   Tournament @relation(fields: [tournamentId], references: [id])
 
   @@map("images")
+}
+
+model User {
+  id               String       @id @unique
+  email            String       @unique
+  firstName        String?      @map("first_name")
+  lastName         String?      @map("last_name")
+  imageUrl         String?      @map("img_url")
+  orginizerName    String?      @map("organizer_name")
+  organizerContact String?      @map("organizer_contact")
+  isVerified       Boolean      @default(false) @map("is_verified")
+  Tournament       Tournament[]
+
+  @@map("users")
 }
