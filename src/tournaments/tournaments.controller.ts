@@ -54,19 +54,7 @@ export class TournamentsController {
     if (tournament?.createdBy !== userId) {
       throw new ForbiddenException();
     }
-
-    const publicIds = dto.images?.map((image) => image.publicId);
-
-    const resources = publicIds?.length
-      ? (await this.filesService.getResourcesByPublicIds(publicIds)).resources
-      : [];
-
-    const images = resources.map((r) => ({
-      createdAt: r.created_at,
-      publicId: r.public_id,
-      url: r.url,
-      secureUrl: r.secure_url,
-    }));
+    const images = await this.filesService.transformImages(dto.images);
 
     const response = await this.tournamentsService.updateTournament(id, {
       ...dto,
@@ -83,18 +71,7 @@ export class TournamentsController {
     @Body() dto: TournamentCreateDto,
     @CurrentUserId() userId: string,
   ) {
-    const publicIds = dto.images?.map((image) => image.publicId);
-
-    const resources = publicIds?.length
-      ? (await this.filesService.getResourcesByPublicIds(publicIds)).resources
-      : [];
-
-    const images = resources.map((r) => ({
-      createdAt: r.created_at,
-      publicId: r.public_id,
-      url: r.url,
-      secureUrl: r.secure_url,
-    }));
+    const images = await this.filesService.transformImages(dto.images);
 
     return await this.tournamentsService.createTournament({
       ...dto,

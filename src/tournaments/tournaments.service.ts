@@ -1,4 +1,10 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ClerkClient } from '@clerk/backend';
+import {
+  Inject,
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 
 type TournamentWithImages = Prisma.TournamentGetPayload<{
@@ -26,7 +32,10 @@ export class TournamentsService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  constructor() {
+  constructor(
+    @Inject('ClerkClient')
+    private readonly clerkClient: ClerkClient,
+  ) {
     super({
       log: ['query', 'info', 'warn', 'error'],
       errorFormat: 'pretty',
