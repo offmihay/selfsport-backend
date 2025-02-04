@@ -15,6 +15,7 @@ import { FilesService } from 'src/files/files.service';
 import { TournamentCreateDto } from './tournaments.dto';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { UsersService } from 'src/users/users.service';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('tournaments')
 export class TournamentsController {
@@ -23,14 +24,14 @@ export class TournamentsController {
     private readonly filesService: FilesService,
     private readonly usersService: UsersService,
   ) {}
-
+  @Public()
   @Get()
   async getTournaments() {
     return await this.tournamentsService.getTournaments();
   }
 
   @Post(':id/register')
-  async register(@Param('id') id: string, @CurrentUserId() userId: string) {
+  async register(@CurrentUserId() userId: string, @Param('id') id: string) {
     const user = await this.usersService.user.findUnique({
       where: { id: userId },
     });
@@ -43,15 +44,48 @@ export class TournamentsController {
 
     if (isUserParticipating) {
       throw new ConflictException(
-        'User is already registered for this tournament',
+        'You are already registered for this tournament',
       );
     }
+
+    const tournamentById = await this.getTournamentById(id);
+
+    if (tournamentById?.participants[tournamentById.maxParticipants! - 1]) {
+      throw new ConflictException(
+        'Max participants reached for this tournament',
+      );
+    }
+
     return await this.tournamentsService.register(id, userId);
+  }
+
+  @Delete(':id/leave')
+  async leave(@CurrentUserId() userId: string, @Param('id') id: string) {
+    const user = await this.usersService.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      await this.usersService.createUser({ id: userId });
+    }
+
+    const isUserParticipating =
+      await this.tournamentsService.isUserParticipating(id, userId);
+
+    if (!isUserParticipating) {
+      throw new ConflictException('You are not registered for this tournament');
+    }
+
+    return await this.tournamentsService.leave(id, userId);
   }
 
   @Get('created')
   async getCreatedTournaments(@CurrentUserId() userId: string) {
     return await this.tournamentsService.getCreatedTournaments(userId);
+  }
+
+  @Get('participated')
+  async getParticipatedTournaments(@CurrentUserId() userId: string) {
+    return await this.tournamentsService.getParticipatedTournaments(userId);
   }
 
   @Get(':id')

@@ -7,11 +7,42 @@ import {
 } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 
-type TournamentWithImages = Prisma.TournamentGetPayload<{
-  include: { images: true; user: true; participants: true };
+type TornamentPayload = Prisma.TournamentGetPayload<{
+  include: { images: true; participants: true; user: true };
 }>;
 
-type TournamentModel = ReturnType<typeof addTournamentExtraProps>;
+type TournamentModel = Omit<
+  TornamentPayload,
+  'latitude' | 'longitude' | 'minAge' | 'maxAge' | 'user'
+> & {
+  geoCoordinates: {
+    latitude: number;
+    longitude: number;
+  };
+  ageRestrictions?: { minAge: number | null; maxAge: number | null };
+  organizer: TornamentPayload['user'];
+  participants: TornamentPayload['user'][];
+};
+
+type TournamentBaseModel = Pick<
+  TournamentModel,
+  | 'createdAt'
+  | 'updatedAt'
+  | 'id'
+  | 'title'
+  | 'description'
+  | 'dateStart'
+  | 'dateEnd'
+  | 'location'
+  | 'maxParticipants'
+  | 'images'
+  | 'entryFee'
+  | 'prizePool'
+  | 'sportType'
+  | 'status'
+> & {
+  participants: string[];
+};
 
 type TournamentCreateModel = Omit<
   Prisma.TournamentCreateInput,
@@ -50,7 +81,7 @@ export class TournamentsService
     await this.$disconnect();
   }
 
-  async getTournaments(): Promise<TournamentModel[]> {
+  async getTournaments(): Promise<TournamentBaseModel[]> {
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
@@ -58,10 +89,10 @@ export class TournamentsService
       },
     });
 
-    return tournaments.map(addTournamentExtraProps);
+    return tournaments.map(mapToBaseModel);
   }
 
-  async getCreatedTournaments(userId: string): Promise<TournamentModel[]> {
+  async getCreatedTournaments(userId: string): Promise<TournamentBaseModel[]> {
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
@@ -72,7 +103,23 @@ export class TournamentsService
       },
     });
 
-    return tournaments.map(addTournamentExtraProps);
+    return tournaments.map(mapToBaseModel);
+  }
+
+  async getParticipatedTournaments(
+    userId: string,
+  ): Promise<TournamentBaseModel[]> {
+    const tournaments = await this.tournament.findMany({
+      include: {
+        images: true,
+        participants: true,
+      },
+      where: {
+        participants: { some: { id: userId } },
+      },
+    });
+
+    return tournaments.map(mapToBaseModel);
   }
 
   async getTournamentById(id: string): Promise<TournamentModel | null> {
@@ -85,7 +132,7 @@ export class TournamentsService
       },
     });
 
-    return tournament ? addTournamentExtraProps(tournament) : null;
+    return tournament ? mapToFullModel(tournament) : null;
   }
 
   async deleteTournament(id: string): Promise<{ message: string } | null> {
@@ -172,7 +219,10 @@ export class TournamentsService
     return !!usersCount;
   }
 
-  async register(id: string, userId: string): Promise<TournamentModel | null> {
+  async register(
+    id: string,
+    userId: string,
+  ): Promise<TournamentBaseModel | null> {
     const tournament = await this.tournament.update({
       where: { id },
       data: { participants: { connect: { id: userId } } },
@@ -183,27 +233,57 @@ export class TournamentsService
       },
     });
 
-    return tournament ? addTournamentExtraProps(tournament) : null;
+    return tournament ? mapToBaseModel(tournament) : null;
+  }
+
+  async leave(id: string, userId: string): Promise<TournamentBaseModel | null> {
+    const tournament = await this.tournament.update({
+      where: { id },
+      data: { participants: { disconnect: { id: userId } } },
+      include: {
+        participants: true,
+        user: true,
+        images: true,
+      },
+    });
+
+    return tournament ? mapToBaseModel(tournament) : null;
   }
 }
 
-const addTournamentExtraProps = (tournament: TournamentWithImages) => {
+const mapToBaseModel = (tournament: TornamentPayload): TournamentBaseModel => {
+  return {
+    id: tournament.id,
+    title: tournament.title,
+    description: tournament.description,
+    dateStart: tournament.dateStart,
+    dateEnd: tournament.dateEnd,
+    location: tournament.location,
+    maxParticipants: tournament.maxParticipants,
+    createdAt: tournament.createdAt,
+    updatedAt: tournament.updatedAt,
+    entryFee: tournament.entryFee,
+    prizePool: tournament.prizePool,
+    images: tournament.images,
+    participants: tournament.participants.map((participant) => participant.id),
+    sportType: tournament.sportType,
+    status: tournament.status,
+  };
+};
+
+const mapToFullModel = (tournament: TornamentPayload): TournamentModel => {
   const { latitude, longitude, minAge, maxAge, user, participants, ...rest } =
     tournament;
-
   return {
     ...rest,
     geoCoordinates: {
-      latitude,
-      longitude,
+      latitude: latitude,
+      longitude: longitude,
     },
-    ageRestrictions: {
-      minAge,
-      maxAge,
-    },
+    ageRestrictions: { minAge: minAge, maxAge: maxAge },
     organizer: {
       ...user,
     },
-    participants: participants.length,
+    participants: { ...participants },
   };
 };

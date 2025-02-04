@@ -13,32 +13,58 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum TournamentSport {
+  BADMINTON
+  TENNIS
+  SQUASH
+  TABLE_TENNIS
+}
+
+enum TournamentSkillLevel {
+  AMATEUR
+  INTERMEDIATE
+  PROFESSIONAL
+}
+
+enum TournamentStatus {
+  UPCOMING
+  ONGOING
+  FINISHED
+  DEACTIVATED
+}
+
+enum TournamentFormat {
+  SINGLES
+  DOUBLES
+  SQUAD
+}
+
 model Tournament {
-  id              String   @id @default(uuid(7)) @db.Uuid
-  sportType       String   @map("sport_type")
+  id              String                @id @default(uuid(7)) @db.Uuid
+  sportType       TournamentSport       @map("sport_type")
   city            String
   location        String
   latitude        Float
   longitude       Float
-  dateStart       DateTime @map("date_start") @db.Timestamptz()
-  dateEnd         DateTime @map("date_end") @db.Timestamptz()
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz()
-  entryFee        Decimal? @map("entry_fee")
-  prizePool       Decimal? @map("prize_pool")
-  minAge          Int?     @map("min_age")
-  maxAge          Int?     @map("max_age")
-  skillLevel      String?  @map("skill_level")
-  format          String?
-  maxParticipants Int?     @map("max_participants")
+  dateStart       DateTime              @map("date_start") @db.Timestamptz()
+  dateEnd         DateTime              @map("date_end") @db.Timestamptz()
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime              @default(now()) @map("updated_at") @db.Timestamptz()
+  entryFee        Decimal?              @map("entry_fee")
+  prizePool       Decimal?              @map("prize_pool")
+  minAge          Int?                  @map("min_age")
+  maxAge          Int?                  @map("max_age")
+  skillLevel      TournamentSkillLevel? @map("skill_level")
+  format          TournamentFormat?
+  maxParticipants Int?                  @map("max_participants")
   title           String
   description     String
-  status          String
+  status          TournamentStatus?     @default(UPCOMING)
   images          Image[]
   rules           String?
-  createdBy       String   @map("created_by")
-  user            User     @relation(name: "TournamentsCreator", fields: [createdBy], references: [id])
-  participants    User[]   @relation(name: "TournamentParticipants")
+  createdBy       String                @map("created_by")
+  user            User                  @relation(name: "TournamentsCreator", fields: [createdBy], references: [id])
+  participants    User[]                @relation(name: "TournamentParticipants")
 
   @@map("tournaments")
 }
