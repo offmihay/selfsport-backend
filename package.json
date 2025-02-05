@@ -32,6 +32,8 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^10.4.15",
     "@prisma/client": "^6.3.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
     "cloudinary": "^2.5.1",
     "multer": "^1.4.5-lts.1",
     "passport": "^0.7.0",

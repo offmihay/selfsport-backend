@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
-import { TournamentCreateDto } from 'src/tournaments/tournaments.dto';
+import { TournamentDto } from 'src/tournaments/tournaments.dto';
 import { Readable } from 'stream';
 
 @Injectable()
@@ -36,7 +36,7 @@ export class FilesService {
     return cloudinary.api.resources_by_ids(publicIds);
   }
 
-  async transformImages(dtoImages: TournamentCreateDto['images']) {
+  async transformImages(dtoImages: TournamentDto['images']) {
     const publicIds = dtoImages?.map((image) => image.publicId);
 
     const resources = publicIds?.length

@@ -14,6 +14,7 @@ import {
   TournamentNotFoundException,
 } from 'src/common/exceptions/tournaments.exceptions';
 import { FilesService } from 'src/files/files.service';
+import { TournamentDto } from './tournaments.dto';
 
 type TornamentPayload = Prisma.TournamentGetPayload<{
   include: { images: true; participants: true; user: true };
@@ -52,17 +53,6 @@ type TournamentBaseModel = Pick<
   participants: string[];
 };
 
-type TournamentCreateModel = Omit<
-  Prisma.TournamentCreateInput,
-  'latitude' | 'longitude' | 'minAge' | 'maxAge' | 'images' | 'user'
-> & {
-  ageRestrictions?: { minAge?: number; maxAge?: number };
-  geoCoordinates: { latitude: number; longitude: number };
-  images?: {
-    publicId: string;
-  }[];
-};
-
 @Injectable()
 export class TournamentsService
   extends PrismaClient
@@ -98,7 +88,7 @@ export class TournamentsService
     return tournaments.map(mapToBaseModel);
   }
 
-  async createTournament(userId: string, data: TournamentCreateModel) {
+  async createTournament(userId: string, data: TournamentDto) {
     const { geoCoordinates, ageRestrictions, images, ...rest } = data;
 
     const transformedimages = await this.filesService.transformImages(images);
@@ -172,7 +162,7 @@ export class TournamentsService
   async updateTournament(
     id: string,
     userId: string,
-    data: TournamentCreateModel,
+    data: TournamentDto,
   ): Promise<TournamentBaseModel> {
     const { geoCoordinates, ageRestrictions, images, ...rest } = data;
 
@@ -307,7 +297,7 @@ export class TournamentsService
   }
 }
 
-// Mapping from DTO to model
+// Mapping from Pyload to model
 
 const mapToBaseModel = (tournament: TornamentPayload): TournamentBaseModel => {
   return {

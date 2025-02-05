@@ -6,30 +6,26 @@ import {
   Put,
   Post,
   Param,
+  ValidationPipe,
+  UsePipes,
 } from '@nestjs/common';
 import { TournamentsService } from './tournaments.service';
-import { FilesService } from 'src/files/files.service';
-import { TournamentCreateDto } from './tournaments.dto';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
-import { UsersService } from 'src/users/users.service';
-import { Public } from 'src/decorators/public.decorator';
+import { TournamentDto } from './tournaments.dto';
 
 @Controller('tournaments')
 export class TournamentsController {
-  constructor(
-    private readonly tournamentsService: TournamentsService,
-    private readonly filesService: FilesService,
-    private readonly usersService: UsersService,
-  ) {}
-  @Public()
+  constructor(private readonly tournamentsService: TournamentsService) {}
+
   @Get()
   async getTournaments() {
     return await this.tournamentsService.getTournaments();
   }
 
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   @Post()
   async createTournament(
-    @Body() dto: TournamentCreateDto,
+    @Body() dto: TournamentDto,
     @CurrentUserId() userId: string,
   ) {
     return await this.tournamentsService.createTournament(userId, dto);
@@ -50,11 +46,12 @@ export class TournamentsController {
     return await this.tournamentsService.getTournamentById(id);
   }
 
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   @Put(':id')
   async UpdateTournament(
     @Param('id') id: string,
     @CurrentUserId() userId: string,
-    @Body() dto: TournamentCreateDto,
+    @Body() dto: TournamentDto,
   ) {
     return await this.tournamentsService.updateTournament(id, userId, dto);
   }
