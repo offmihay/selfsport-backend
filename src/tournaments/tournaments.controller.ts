@@ -36,7 +36,7 @@ export class TournamentsController {
       where: { id: userId },
     });
     if (!user) {
-      await this.usersService.createUser({ id: userId });
+      throw new ForbiddenException('Not existing user with this ID');
     }
 
     const isUserParticipating =
@@ -65,7 +65,7 @@ export class TournamentsController {
       where: { id: userId },
     });
     if (!user) {
-      await this.usersService.createUser({ id: userId });
+      throw new ForbiddenException('Not existing user with this ID');
     }
 
     const isUserParticipating =
@@ -120,9 +120,8 @@ export class TournamentsController {
     const user = await this.usersService.user.findUnique({
       where: { id: userId },
     });
-
     if (!user) {
-      await this.usersService.createUser({ id: userId });
+      throw new ForbiddenException('Not existing user with this ID');
     }
 
     const images = await this.filesService.transformImages(dto.images);
@@ -146,12 +145,12 @@ export class TournamentsController {
     @CurrentUserId() userId: string,
   ) {
     const images = await this.filesService.transformImages(dto.images);
+
     const user = await this.usersService.user.findUnique({
       where: { id: userId },
     });
-
     if (!user) {
-      await this.usersService.createUser({ id: userId });
+      throw new ForbiddenException('Not existing user with this ID');
     }
 
     return await this.tournamentsService.createTournament({

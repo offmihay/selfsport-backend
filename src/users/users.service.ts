@@ -1,15 +1,17 @@
+import { UserJSON } from '@clerk/backend/dist/api/resources/JSON';
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
-type UsersCreateModel = {
+export type UsersCreateModel = {
   id: string;
   email?: string;
-  firstName?: string;
-  lastName?: string;
+  firstName: string | null;
+  lastName: string | null;
   imageUrl?: string;
-  orginizerName?: string;
+  organizerName?: string;
   organizerContact?: string;
-  isVerified?: boolean;
+  organizerEmail?: string;
+  isVerified: boolean;
 };
 
 @Injectable()
@@ -28,11 +30,59 @@ export class UsersService
     await this.$disconnect();
   }
 
-  async createUser(data: UsersCreateModel) {
+  async createUser(data: UserJSON) {
     await this.user.create({
       data: {
-        ...data,
-        email: data.email || `test${new Date().getTime()}@test.com`,
+        id: data.id || '',
+        email: data.email_addresses[0].email_address,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        imageUrl: data.image_url,
+        organizerName:
+          typeof data.unsafe_metadata.organizerName === 'string'
+            ? data.unsafe_metadata.organizerName
+            : undefined,
+        organizerEmail:
+          typeof data.unsafe_metadata.organizerEmail === 'string'
+            ? data.unsafe_metadata.organizerEmail
+            : undefined,
+        organizerPhone:
+          typeof data.unsafe_metadata.organizerPhone === 'string'
+            ? data.unsafe_metadata.organizerPhone
+            : undefined,
+        isVerified:
+          typeof data.public_metadata.isVerified === 'boolean'
+            ? data.public_metadata.isVerified
+            : false,
+      },
+    });
+    return data;
+  }
+
+  async updateUser(data: UserJSON) {
+    await this.user.update({
+      where: { id: data.id },
+      data: {
+        email: data.email_addresses[0].email_address,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        imageUrl: data.image_url,
+        organizerName:
+          typeof data.unsafe_metadata.organizerName === 'string'
+            ? data.unsafe_metadata.organizerName
+            : undefined,
+        organizerEmail:
+          typeof data.unsafe_metadata.organizerEmail === 'string'
+            ? data.unsafe_metadata.organizerEmail
+            : undefined,
+        organizerPhone:
+          typeof data.unsafe_metadata.organizerPhone === 'string'
+            ? data.unsafe_metadata.organizerPhone
+            : undefined,
+        isVerified:
+          typeof data.public_metadata.isVerified === 'boolean'
+            ? data.public_metadata.isVerified
+            : false,
       },
     });
     return data;
