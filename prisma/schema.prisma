@@ -50,13 +50,13 @@ model Tournament {
   dateEnd         DateTime              @map("date_end") @db.Timestamptz()
   createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt       DateTime              @default(now()) @map("updated_at") @db.Timestamptz()
-  entryFee        Decimal?              @map("entry_fee")
-  prizePool       Decimal?              @map("prize_pool")
+  entryFee        Decimal               @map("entry_fee")
+  prizePool       Decimal               @map("prize_pool")
   minAge          Int?                  @map("min_age")
   maxAge          Int?                  @map("max_age")
   skillLevel      TournamentSkillLevel? @map("skill_level")
   format          TournamentFormat?
-  maxParticipants Int?                  @map("max_participants")
+  maxParticipants Int                   @map("max_participants")
   title           String
   description     String
   status          TournamentStatus?     @default(UPCOMING)
