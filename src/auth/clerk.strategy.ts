@@ -4,10 +4,14 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-custom';
 import { Request } from 'express';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
+  ) {
     super();
   }
 
@@ -22,10 +26,16 @@ export class ClerkStrategy extends PassportStrategy(Strategy, 'clerk') {
       const tokenPayload = await verifyToken(token, {
         secretKey: this.configService.get('CLERK_SECRET_KEY'),
       });
+      const userId = tokenPayload.sub;
 
-      return tokenPayload.sub;
-    } catch (error) {
-      console.error(error);
+      const user = await this.usersService.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) {
+        throw new Error();
+      }
+      return userId;
+    } catch {
       throw new UnauthorizedException('Invalid token');
     }
   }

@@ -6,6 +6,14 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
+import {
+  AlreadyRegisteredException,
+  ForbiddenTournamentAccessException,
+  MaxParticipantsReachedException,
+  NotRegisteredException,
+  TournamentNotFoundException,
+} from 'src/common/exceptions/tournaments.exceptions';
+import { FilesService } from 'src/files/files.service';
 
 type TornamentPayload = Prisma.TournamentGetPayload<{
   include: { images: true; participants: true; user: true };
@@ -46,15 +54,12 @@ type TournamentBaseModel = Pick<
 
 type TournamentCreateModel = Omit<
   Prisma.TournamentCreateInput,
-  'latitude' | 'longitude' | 'minAge' | 'maxAge' | 'images'
+  'latitude' | 'longitude' | 'minAge' | 'maxAge' | 'images' | 'user'
 > & {
   ageRestrictions?: { minAge?: number; maxAge?: number };
   geoCoordinates: { latitude: number; longitude: number };
   images?: {
-    createdAt: string;
     publicId: string;
-    url: string;
-    secureUrl: string;
   }[];
 };
 
@@ -66,6 +71,7 @@ export class TournamentsService
   constructor(
     @Inject('ClerkClient')
     private readonly clerkClient: ClerkClient,
+    private readonly filesService: FilesService,
   ) {
     super({
       log: ['query', 'info', 'warn', 'error'],
@@ -92,7 +98,32 @@ export class TournamentsService
     return tournaments.map(mapToBaseModel);
   }
 
+  async createTournament(userId: string, data: TournamentCreateModel) {
+    const { geoCoordinates, ageRestrictions, images, ...rest } = data;
+
+    const transformedimages = await this.filesService.transformImages(images);
+
+    const tournament = await this.tournament.create({
+      data: {
+        ...rest,
+        latitude: geoCoordinates.latitude,
+        longitude: geoCoordinates.longitude,
+        minAge: ageRestrictions?.minAge,
+        maxAge: ageRestrictions?.maxAge,
+        images: {
+          create: transformedimages,
+        },
+        user: {
+          connect: { id: userId },
+        },
+      },
+    });
+
+    return await this.getTournamentById(tournament.id);
+  }
+
   async getCreatedTournaments(userId: string): Promise<TournamentBaseModel[]> {
+    console.log(userId);
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
@@ -122,8 +153,8 @@ export class TournamentsService
     return tournaments.map(mapToBaseModel);
   }
 
-  async getTournamentById(id: string): Promise<TournamentModel | null> {
-    const tournament = await this.tournament.findUnique({
+  async getTournamentById(id: string): Promise<TournamentModel> {
+    const tournamentRecord = await this.tournament.findUnique({
       where: { id },
       include: {
         images: true,
@@ -132,64 +163,29 @@ export class TournamentsService
       },
     });
 
-    return tournament ? mapToFullModel(tournament) : null;
-  }
-
-  async deleteTournament(id: string): Promise<{ message: string } | null> {
-    const tournament = await this.tournament.findUnique({
-      where: { id },
-    });
-
-    if (tournament) {
-      await this.image.deleteMany({
-        where: { tournamentId: id },
-      });
-
-      await this.tournament.delete({
-        where: { id },
-      });
-      return { message: 'Tournament was deleted succesfully' };
+    if (!tournamentRecord) {
+      throw new TournamentNotFoundException();
     }
-    return null;
+    return mapToFullModel(tournamentRecord);
   }
 
   async updateTournament(
     id: string,
+    userId: string,
     data: TournamentCreateModel,
-  ): Promise<TournamentModel | null> {
+  ): Promise<TournamentBaseModel> {
     const { geoCoordinates, ageRestrictions, images, ...rest } = data;
 
-    const tournament = await this.tournament.findUnique({
-      where: { id },
+    const tournamentRecord = await this.ensureTournamentExists(id);
+    this.validateTournamentOwnership(tournamentRecord, userId);
+
+    const transformedimages = await this.filesService.transformImages(images);
+    await this.image.deleteMany({
+      where: { tournamentId: id },
     });
 
-    if (tournament) {
-      await this.image.deleteMany({
-        where: { tournamentId: id },
-      });
-
-      await this.tournament.update({
-        where: { id },
-        data: {
-          ...rest,
-          latitude: geoCoordinates.latitude,
-          longitude: geoCoordinates.longitude,
-          minAge: ageRestrictions?.minAge,
-          maxAge: ageRestrictions?.maxAge,
-          images: {
-            create: images,
-          },
-        },
-      });
-      return await this.getTournamentById(tournament.id);
-    }
-    return null;
-  }
-
-  async createTournament(data: TournamentCreateModel) {
-    const { geoCoordinates, ageRestrictions, images, ...rest } = data;
-
-    const tournament = await this.tournament.create({
+    const tournament = await this.tournament.update({
+      where: { id },
       data: {
         ...rest,
         latitude: geoCoordinates.latitude,
@@ -197,32 +193,45 @@ export class TournamentsService
         minAge: ageRestrictions?.minAge,
         maxAge: ageRestrictions?.maxAge,
         images: {
-          create: images,
+          create: transformedimages,
         },
+      },
+      include: {
+        participants: true,
+        user: true,
+        images: true,
       },
     });
 
-    return await this.getTournamentById(tournament.id);
+    return mapToBaseModel(tournament);
   }
 
-  async isUserParticipating(id: string, userId: string): Promise<boolean> {
-    const usersCount = await this.tournament.count({
-      where: {
-        id,
-        participants: {
-          some: {
-            id: userId,
-          },
-        },
-      },
+  async deleteTournament(
+    id: string,
+    userId: string,
+  ): Promise<{ message: string } | null> {
+    const tournamentRecord = await this.ensureTournamentExists(id);
+    this.validateTournamentOwnership(tournamentRecord, userId);
+
+    await this.image.deleteMany({
+      where: { tournamentId: id },
     });
-    return !!usersCount;
+
+    await this.tournament.delete({
+      where: { id },
+    });
+
+    return { message: 'Tournament was deleted succesfully' };
   }
 
   async register(
     id: string,
     userId: string,
   ): Promise<TournamentBaseModel | null> {
+    const tournamentRecord = await this.ensureTournamentExists(id);
+    this.validateUserParticipation(tournamentRecord, userId, true);
+    this.validateMaxNotExceeded(tournamentRecord);
+
     const tournament = await this.tournament.update({
       where: { id },
       data: { participants: { connect: { id: userId } } },
@@ -233,10 +242,13 @@ export class TournamentsService
       },
     });
 
-    return tournament ? mapToBaseModel(tournament) : null;
+    return mapToBaseModel(tournament);
   }
 
   async leave(id: string, userId: string): Promise<TournamentBaseModel | null> {
+    const tournamentRecord = await this.ensureTournamentExists(id);
+    this.validateUserParticipation(tournamentRecord, userId, false);
+
     const tournament = await this.tournament.update({
       where: { id },
       data: { participants: { disconnect: { id: userId } } },
@@ -247,9 +259,55 @@ export class TournamentsService
       },
     });
 
-    return tournament ? mapToBaseModel(tournament) : null;
+    return mapToBaseModel(tournament);
+  }
+
+  // Helper functions
+
+  async ensureTournamentExists(id: string): Promise<TournamentModel> {
+    const tournament = await this.getTournamentById(id);
+    if (!tournament) {
+      throw new TournamentNotFoundException();
+    }
+    return tournament;
+  }
+
+  validateMaxNotExceeded(tournament: TournamentModel): TournamentModel {
+    if (tournament?.participants[tournament.maxParticipants! - 1]) {
+      throw new MaxParticipantsReachedException();
+    }
+    return tournament;
+  }
+
+  validateUserParticipation(
+    tournament: TournamentModel,
+    userId: string,
+    shouldBeRegisted: boolean,
+  ): TournamentModel {
+    const isUserParticipating = tournament.participants
+      .map((p) => p.id)
+      .includes(userId);
+    if (isUserParticipating && shouldBeRegisted) {
+      throw new AlreadyRegisteredException();
+    }
+    if (!isUserParticipating && !shouldBeRegisted) {
+      throw new NotRegisteredException();
+    }
+    return tournament;
+  }
+
+  validateTournamentOwnership(
+    tournament: TournamentModel,
+    userId: string,
+  ): TournamentModel {
+    if (tournament.createdBy !== userId) {
+      throw new ForbiddenTournamentAccessException();
+    }
+    return tournament;
   }
 }
+
+// Mapping from DTO to model
 
 const mapToBaseModel = (tournament: TornamentPayload): TournamentBaseModel => {
   return {
@@ -284,6 +342,6 @@ const mapToFullModel = (tournament: TornamentPayload): TournamentModel => {
     organizer: {
       ...user,
     },
-    participants: { ...participants },
+    participants,
   };
 };

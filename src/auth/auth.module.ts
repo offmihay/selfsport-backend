@@ -5,9 +5,10 @@ import { ClerkClientProvider } from 'src/providers/clerk-client.provider';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ClerkAuthGuard } from './clerk-auth.guard';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
-  imports: [PassportModule, ConfigModule],
+  imports: [UsersModule, PassportModule, ConfigModule],
   providers: [
     ClerkStrategy,
     ClerkClientProvider,

@@ -5,10 +5,7 @@ import {
   Delete,
   Put,
   Post,
-  NotFoundException,
   Param,
-  ForbiddenException,
-  ConflictException,
 } from '@nestjs/common';
 import { TournamentsService } from './tournaments.service';
 import { FilesService } from 'src/files/files.service';
@@ -30,52 +27,12 @@ export class TournamentsController {
     return await this.tournamentsService.getTournaments();
   }
 
-  @Post(':id/register')
-  async register(@CurrentUserId() userId: string, @Param('id') id: string) {
-    const user = await this.usersService.user.findUnique({
-      where: { id: userId },
-    });
-    if (!user) {
-      throw new ForbiddenException('Not existing user with this ID');
-    }
-
-    const isUserParticipating =
-      await this.tournamentsService.isUserParticipating(id, userId);
-
-    if (isUserParticipating) {
-      throw new ConflictException(
-        'You are already registered for this tournament',
-      );
-    }
-
-    const tournamentById = await this.getTournamentById(id);
-
-    if (tournamentById?.participants[tournamentById.maxParticipants! - 1]) {
-      throw new ConflictException(
-        'Max participants reached for this tournament',
-      );
-    }
-
-    return await this.tournamentsService.register(id, userId);
-  }
-
-  @Delete(':id/leave')
-  async leave(@CurrentUserId() userId: string, @Param('id') id: string) {
-    const user = await this.usersService.user.findUnique({
-      where: { id: userId },
-    });
-    if (!user) {
-      throw new ForbiddenException('Not existing user with this ID');
-    }
-
-    const isUserParticipating =
-      await this.tournamentsService.isUserParticipating(id, userId);
-
-    if (!isUserParticipating) {
-      throw new ConflictException('You are not registered for this tournament');
-    }
-
-    return await this.tournamentsService.leave(id, userId);
+  @Post()
+  async createTournament(
+    @Body() dto: TournamentCreateDto,
+    @CurrentUserId() userId: string,
+  ) {
+    return await this.tournamentsService.createTournament(userId, dto);
   }
 
   @Get('created')
@@ -90,75 +47,33 @@ export class TournamentsController {
 
   @Get(':id')
   async getTournamentById(@Param('id') id: string) {
-    const tournament = await this.tournamentsService.getTournamentById(id);
-    if (!tournament) {
-      throw new NotFoundException(`Tournament with id ${id} not found`);
-    }
-    return tournament;
-  }
-
-  @Delete(':id')
-  async DeleteTournament(@Param('id') id: string) {
-    const response = await this.tournamentsService.deleteTournament(id);
-    if (!response) {
-      throw new NotFoundException(`Tournament with id ${id} not found`);
-    }
-    return response;
+    return await this.tournamentsService.getTournamentById(id);
   }
 
   @Put(':id')
   async UpdateTournament(
-    @CurrentUserId() userId: string,
     @Param('id') id: string,
+    @CurrentUserId() userId: string,
     @Body() dto: TournamentCreateDto,
   ) {
-    const tournament = await this.tournamentsService.getTournamentById(id);
-    if (tournament?.createdBy !== userId) {
-      throw new ForbiddenException();
-    }
-
-    const user = await this.usersService.user.findUnique({
-      where: { id: userId },
-    });
-    if (!user) {
-      throw new ForbiddenException('Not existing user with this ID');
-    }
-
-    const images = await this.filesService.transformImages(dto.images);
-
-    const response = await this.tournamentsService.updateTournament(id, {
-      ...dto,
-      images,
-      user: {
-        connect: { id: userId },
-      },
-    });
-    if (!response) {
-      throw new NotFoundException(`Tournament with id ${id} not found`);
-    }
-    return response;
+    return await this.tournamentsService.updateTournament(id, userId, dto);
   }
 
-  @Post()
-  async createTournament(
-    @Body() dto: TournamentCreateDto,
+  @Delete(':id')
+  async DeleteTournament(
+    @Param('id') id: string,
     @CurrentUserId() userId: string,
   ) {
-    const images = await this.filesService.transformImages(dto.images);
+    return await this.tournamentsService.deleteTournament(id, userId);
+  }
 
-    const user = await this.usersService.user.findUnique({
-      where: { id: userId },
-    });
-    if (!user) {
-      throw new ForbiddenException('Not existing user with this ID');
-    }
+  @Post(':id/register')
+  async register(@CurrentUserId() userId: string, @Param('id') id: string) {
+    return await this.tournamentsService.register(id, userId);
+  }
 
-    return await this.tournamentsService.createTournament({
-      ...dto,
-      images,
-      user: {
-        connect: { id: userId },
-      },
-    });
+  @Delete(':id/leave')
+  async leave(@CurrentUserId() userId: string, @Param('id') id: string) {
+    return await this.tournamentsService.leave(id, userId);
   }
 }
