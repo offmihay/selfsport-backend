@@ -38,6 +38,14 @@ export class UsersService
         firstName: data.first_name,
         lastName: data.last_name,
         imageUrl: data.image_url,
+        phoneNumber:
+          typeof data.unsafe_metadata.phoneNumber === 'string'
+            ? data.unsafe_metadata.phoneNumber
+            : undefined,
+        organizerDetails:
+          typeof data.unsafe_metadata.organizerDetails === 'string'
+            ? data.unsafe_metadata.organizerDetails
+            : undefined,
         organizerName:
           typeof data.unsafe_metadata.organizerName === 'string'
             ? data.unsafe_metadata.organizerName
