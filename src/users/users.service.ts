@@ -33,66 +33,55 @@ export class UsersService
   async createUser(data: UserJSON) {
     await this.user.create({
       data: {
-        id: data.id || '',
+        id: data.id,
         email: data.email_addresses[0].email_address,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        imageUrl: data.image_url,
-        phoneNumber:
-          typeof data.unsafe_metadata.phoneNumber === 'string'
-            ? data.unsafe_metadata.phoneNumber
-            : undefined,
-        organizerDetails:
-          typeof data.unsafe_metadata.organizerDetails === 'string'
-            ? data.unsafe_metadata.organizerDetails
-            : undefined,
-        organizerName:
-          typeof data.unsafe_metadata.organizerName === 'string'
-            ? data.unsafe_metadata.organizerName
-            : undefined,
-        organizerEmail:
-          typeof data.unsafe_metadata.organizerEmail === 'string'
-            ? data.unsafe_metadata.organizerEmail
-            : undefined,
-        organizerPhone:
-          typeof data.unsafe_metadata.organizerPhone === 'string'
-            ? data.unsafe_metadata.organizerPhone
-            : undefined,
-        isVerified:
-          typeof data.public_metadata.isVerified === 'boolean'
-            ? data.public_metadata.isVerified
-            : false,
+        ...this.transformData(data),
       },
     });
     return data;
   }
 
   async updateUser(data: UserJSON) {
+    console.log(this.transformData(data));
     await this.user.update({
       where: { id: data.id },
       data: {
         email: data.email_addresses[0].email_address,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        imageUrl: data.image_url,
-        organizerName:
-          typeof data.unsafe_metadata.organizerName === 'string'
-            ? data.unsafe_metadata.organizerName
-            : undefined,
-        organizerEmail:
-          typeof data.unsafe_metadata.organizerEmail === 'string'
-            ? data.unsafe_metadata.organizerEmail
-            : undefined,
-        organizerPhone:
-          typeof data.unsafe_metadata.organizerPhone === 'string'
-            ? data.unsafe_metadata.organizerPhone
-            : undefined,
-        isVerified:
-          typeof data.public_metadata.isVerified === 'boolean'
-            ? data.public_metadata.isVerified
-            : false,
+        ...this.transformData(data),
       },
     });
     return data;
+  }
+
+  transformData(data: UserJSON) {
+    return {
+      firstName: data.first_name,
+      lastName: data.last_name,
+      imageUrl: data.image_url,
+      phoneNumber:
+        typeof data.unsafe_metadata.phoneNumber === 'string'
+          ? data.unsafe_metadata.phoneNumber
+          : undefined,
+      organizerDetails:
+        typeof data.unsafe_metadata.organizerDetails === 'string'
+          ? data.unsafe_metadata.organizerDetails
+          : undefined,
+      organizerName:
+        typeof data.unsafe_metadata.organizerName === 'string'
+          ? data.unsafe_metadata.organizerName
+          : undefined,
+      organizerEmail:
+        typeof data.unsafe_metadata.organizerEmail === 'string'
+          ? data.unsafe_metadata.organizerEmail
+          : undefined,
+      organizerPhone:
+        typeof data.unsafe_metadata.organizerPhone === 'string'
+          ? data.unsafe_metadata.organizerPhone
+          : undefined,
+      isVerified:
+        typeof data.public_metadata.isVerified === 'boolean'
+          ? data.public_metadata.isVerified
+          : false,
+    };
   }
 }
