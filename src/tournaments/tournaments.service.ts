@@ -22,7 +22,7 @@ type TornamentPayload = Prisma.TournamentGetPayload<{
 
 type TournamentModel = Omit<
   TornamentPayload,
-  'latitude' | 'longitude' | 'minAge' | 'maxAge' | 'user'
+  'latitude' | 'longitude' | 'minAge' | 'maxAge' | 'user' | 'participants'
 > & {
   geoCoordinates: {
     latitude: number;
@@ -30,7 +30,7 @@ type TournamentModel = Omit<
   };
   ageRestrictions?: { minAge: number | null; maxAge: number | null };
   organizer: TornamentPayload['user'];
-  participants: TornamentPayload['user'][];
+  participants: Omit<TornamentPayload['user'], 'phoneNumber'>[];
 };
 
 type TournamentBaseModel = Pick<
@@ -322,6 +322,7 @@ const mapToBaseModel = (tournament: TornamentPayload): TournamentBaseModel => {
 const mapToFullModel = (tournament: TornamentPayload): TournamentModel => {
   const { latitude, longitude, minAge, maxAge, user, participants, ...rest } =
     tournament;
+
   return {
     ...rest,
     geoCoordinates: {
@@ -332,6 +333,12 @@ const mapToFullModel = (tournament: TornamentPayload): TournamentModel => {
     organizer: {
       ...user,
     },
-    participants,
+    participants: participants.map((participant) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { phoneNumber, ...rest } = participant;
+      return {
+        ...rest,
+      };
+    }),
   };
 };
