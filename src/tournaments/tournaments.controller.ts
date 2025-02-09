@@ -6,23 +6,22 @@ import {
   Put,
   Post,
   Param,
-  ValidationPipe,
-  UsePipes,
+  Query,
+  Patch,
 } from '@nestjs/common';
-import { TournamentsService } from './tournaments.service';
+import { QueryTournamentsDto, TournamentsService } from './tournaments.service';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
-import { TournamentDto } from './tournaments.dto';
+import { TournamentDto } from './dto/tournaments.dto';
 
 @Controller('tournaments')
 export class TournamentsController {
   constructor(private readonly tournamentsService: TournamentsService) {}
 
   @Get()
-  async getTournaments() {
-    return await this.tournamentsService.getTournaments();
+  async getTournaments(@Query() query: QueryTournamentsDto) {
+    return await this.tournamentsService.getTournaments(query);
   }
 
-  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   @Post()
   async createTournament(
     @Body() dto: TournamentDto,
@@ -46,7 +45,6 @@ export class TournamentsController {
     return await this.tournamentsService.getTournamentById(id);
   }
 
-  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   @Put(':id')
   async UpdateTournament(
     @Param('id') id: string,
@@ -54,6 +52,15 @@ export class TournamentsController {
     @Body() dto: TournamentDto,
   ) {
     return await this.tournamentsService.updateTournament(id, userId, dto);
+  }
+
+  @Patch(':id')
+  async RemoveUser(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Query('participantId') participantId: string,
+  ) {
+    return await this.tournamentsService.removeUser(id, userId, participantId);
   }
 
   @Delete(':id')

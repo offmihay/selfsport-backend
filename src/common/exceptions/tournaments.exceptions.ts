@@ -20,7 +20,7 @@ export class AlreadyRegisteredException extends ConflictException {
     super({
       statusCode: 409,
       error: 'Conflict',
-      message: 'You are already registered for this tournament',
+      message: 'User is already registered for this tournament',
       code: 'TOURNAMENT_ALREADY_REGISTERED',
     });
   }
@@ -31,7 +31,7 @@ export class NotRegisteredException extends ConflictException {
     super({
       statusCode: 409,
       error: 'Conflict',
-      message: 'You are not registered for this tournamentt',
+      message: 'User is not registered for this tournament',
       code: 'TOURNAMENT_NOT_REGISTERED',
     });
   }

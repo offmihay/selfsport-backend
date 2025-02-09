@@ -14,7 +14,11 @@ import {
   TournamentNotFoundException,
 } from 'src/common/exceptions/tournaments.exceptions';
 import { FilesService } from 'src/files/files.service';
-import { TournamentDto } from './tournaments.dto';
+import { TournamentDto } from './dto/tournaments.dto';
+import { FilterTournamentsDto } from './dto/filters.dto';
+import { IntersectionType } from '@nestjs/mapped-types';
+import { PaginationDto } from './dto/pagination.dto';
+import { SortTournamentsDto } from './dto/sort.dto';
 
 type TornamentPayload = Prisma.TournamentGetPayload<{
   include: { images: true; participants: true; user: true };
@@ -49,9 +53,15 @@ type TournamentBaseModel = Pick<
   | 'prizePool'
   | 'sportType'
   | 'status'
+  | 'geoCoordinates'
 > & {
   participants: string[];
 };
+
+export class QueryTournamentsDto extends IntersectionType(
+  FilterTournamentsDto,
+  IntersectionType(PaginationDto, SortTournamentsDto),
+) {}
 
 @Injectable()
 export class TournamentsService
@@ -77,14 +87,57 @@ export class TournamentsService
     await this.$disconnect();
   }
 
-  async getTournaments(): Promise<TournamentBaseModel[]> {
+  async getTournaments(filters: QueryTournamentsDto) {
+    const { page = 1, limit = 10 } = filters;
+    const skip = (page - 1) * limit;
+
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
         participants: true,
       },
+      where: {
+        sportType: filters.sportType?.length
+          ? { in: filters.sportType }
+          : undefined,
+        skillLevel: filters.skillLevel?.length
+          ? { in: filters.skillLevel }
+          : undefined,
+        prizePool: {
+          gte: filters.prizePool?.min,
+          lte: filters.prizePool?.max,
+        },
+        entryFee: {
+          gte: filters.entryFee?.min,
+          lte: filters.entryFee?.max,
+        },
+        title: filters.search
+          ? {
+              contains: filters.search,
+              mode: 'insensitive',
+            }
+          : undefined,
+        AND: filters.date
+          ? [
+              {
+                dateStart: {
+                  lte: new Date(filters.date.setHours(23, 59, 59, 999)),
+                },
+                dateEnd: { gte: new Date(filters.date.setHours(0, 0, 0, 0)) },
+              },
+            ]
+          : [
+              {
+                dateStart: { gte: new Date() },
+              },
+            ],
+      },
+      orderBy: filters.sortBy
+        ? { [filters.sortBy]: filters.sortOrder || 'asc' }
+        : { createdAt: 'desc' },
+      skip,
+      take: limit,
     });
-
     return tournaments.map(mapToBaseModel);
   }
 
@@ -248,6 +301,28 @@ export class TournamentsService
     return mapToFullModel(tournament);
   }
 
+  async removeUser(
+    id: string,
+    userId: string,
+    participantId: string,
+  ): Promise<TournamentModel | null> {
+    const tournamentRecord = await this.ensureTournamentExists(id);
+    this.validateTournamentOwnership(tournamentRecord, userId);
+    this.validateUserParticipation(tournamentRecord, participantId, false);
+
+    const tournament = await this.tournament.update({
+      where: { id },
+      data: { participants: { disconnect: { id: participantId } } },
+      include: {
+        participants: true,
+        user: true,
+        images: true,
+      },
+    });
+
+    return mapToFullModel(tournament);
+  }
+
   // Helper functions
 
   async ensureTournamentExists(id: string): Promise<TournamentModel> {
@@ -291,6 +366,14 @@ export class TournamentsService
     }
     return tournament;
   }
+
+  computeStatus = (tournament: TornamentPayload): string => {
+    const now = new Date();
+    if (now < tournament.dateStart) return 'pending';
+    if (now >= tournament.dateStart && now < tournament.dateEnd)
+      return 'active';
+    return 'finished';
+  };
 }
 
 // Mapping from Pyload to model
@@ -312,6 +395,10 @@ const mapToBaseModel = (tournament: TornamentPayload): TournamentBaseModel => {
     participants: tournament.participants.map((participant) => participant.id),
     sportType: tournament.sportType,
     status: tournament.status,
+    geoCoordinates: {
+      latitude: tournament.latitude,
+      longitude: tournament.longitude,
+    },
   };
 };
 

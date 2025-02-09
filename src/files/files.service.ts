@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
-import { TournamentDto } from 'src/tournaments/tournaments.dto';
+import { TournamentDto } from 'src/tournaments/dto/tournaments.dto';
 import { Readable } from 'stream';
 
 @Injectable()
