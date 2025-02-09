@@ -113,7 +113,6 @@ export class TournamentsService
   }
 
   async getCreatedTournaments(userId: string): Promise<TournamentBaseModel[]> {
-    console.log(userId);
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
@@ -163,7 +162,7 @@ export class TournamentsService
     id: string,
     userId: string,
     data: TournamentDto,
-  ): Promise<TournamentBaseModel> {
+  ): Promise<TournamentModel> {
     const { geoCoordinates, ageRestrictions, images, ...rest } = data;
 
     const tournamentRecord = await this.ensureTournamentExists(id);
@@ -193,7 +192,7 @@ export class TournamentsService
       },
     });
 
-    return mapToBaseModel(tournament);
+    return mapToFullModel(tournament);
   }
 
   async deleteTournament(
@@ -214,10 +213,7 @@ export class TournamentsService
     return { message: 'Tournament was deleted succesfully' };
   }
 
-  async register(
-    id: string,
-    userId: string,
-  ): Promise<TournamentBaseModel | null> {
+  async register(id: string, userId: string): Promise<TournamentModel | null> {
     const tournamentRecord = await this.ensureTournamentExists(id);
     this.validateUserParticipation(tournamentRecord, userId, true);
     this.validateMaxNotExceeded(tournamentRecord);
@@ -232,10 +228,10 @@ export class TournamentsService
       },
     });
 
-    return mapToBaseModel(tournament);
+    return mapToFullModel(tournament);
   }
 
-  async leave(id: string, userId: string): Promise<TournamentBaseModel | null> {
+  async leave(id: string, userId: string): Promise<TournamentModel | null> {
     const tournamentRecord = await this.ensureTournamentExists(id);
     this.validateUserParticipation(tournamentRecord, userId, false);
 
@@ -249,7 +245,7 @@ export class TournamentsService
       },
     });
 
-    return mapToBaseModel(tournament);
+    return mapToFullModel(tournament);
   }
 
   // Helper functions

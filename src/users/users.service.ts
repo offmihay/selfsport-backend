@@ -42,7 +42,6 @@ export class UsersService
   }
 
   async updateUser(data: UserJSON) {
-    console.log(this.transformData(data));
     await this.user.update({
       where: { id: data.id },
       data: {
