@@ -26,13 +26,6 @@ enum TournamentSkillLevel {
   PROFESSIONAL
 }
 
-enum TournamentStatus {
-  UPCOMING
-  ONGOING
-  FINISHED
-  DEACTIVATED
-}
-
 enum TournamentFormat {
   SINGLES
   DOUBLES
@@ -59,7 +52,7 @@ model Tournament {
   maxParticipants Int                   @map("max_participants")
   title           String
   description     String
-  status          TournamentStatus?     @default(UPCOMING)
+  isActive        Boolean               @default(true)
   images          Image[]
   rules           String?
   createdBy       String                @map("created_by")

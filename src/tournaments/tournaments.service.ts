@@ -19,6 +19,7 @@ import { FilterTournamentsDto } from './dto/filters.dto';
 import { IntersectionType } from '@nestjs/mapped-types';
 import { PaginationDto } from './dto/pagination.dto';
 import { SortTournamentsDto } from './dto/sort.dto';
+import { TournamentStatus } from 'src/common/types/tournament.types';
 
 type TornamentPayload = Prisma.TournamentGetPayload<{
   include: { images: true; participants: true; user: true };
@@ -35,6 +36,7 @@ type TournamentModel = Omit<
   ageRestrictions?: { minAge: number | null; maxAge: number | null };
   organizer: TornamentPayload['user'];
   participants: Omit<TornamentPayload['user'], 'phoneNumber'>[];
+  status: TournamentStatus;
 };
 
 type TournamentBaseModel = Pick<
@@ -52,10 +54,11 @@ type TournamentBaseModel = Pick<
   | 'entryFee'
   | 'prizePool'
   | 'sportType'
-  | 'status'
+  | 'isActive'
   | 'geoCoordinates'
 > & {
   participants: string[];
+  status: TournamentStatus;
 };
 
 export class QueryTournamentsDto extends IntersectionType(
@@ -97,6 +100,7 @@ export class TournamentsService
         participants: true,
       },
       where: {
+        isActive: true,
         sportType: filters.sportType?.length
           ? { in: filters.sportType }
           : undefined,
@@ -138,7 +142,7 @@ export class TournamentsService
       skip,
       take: limit,
     });
-    return tournaments.map(mapToBaseModel);
+    return tournaments.map(this.mapToBaseModel);
   }
 
   async createTournament(userId: string, data: TournamentDto) {
@@ -176,7 +180,7 @@ export class TournamentsService
       },
     });
 
-    return tournaments.map(mapToBaseModel);
+    return tournaments.map(this.mapToBaseModel);
   }
 
   async getParticipatedTournaments(
@@ -188,11 +192,12 @@ export class TournamentsService
         participants: true,
       },
       where: {
+        isActive: true,
         participants: { some: { id: userId } },
       },
     });
 
-    return tournaments.map(mapToBaseModel);
+    return tournaments.map(this.mapToBaseModel);
   }
 
   async getTournamentById(id: string): Promise<TournamentModel> {
@@ -208,7 +213,7 @@ export class TournamentsService
     if (!tournamentRecord) {
       throw new TournamentNotFoundException();
     }
-    return mapToFullModel(tournamentRecord);
+    return this.mapToFullModel(tournamentRecord);
   }
 
   async updateTournament(
@@ -245,7 +250,7 @@ export class TournamentsService
       },
     });
 
-    return mapToFullModel(tournament);
+    return this.mapToFullModel(tournament);
   }
 
   async deleteTournament(
@@ -281,7 +286,7 @@ export class TournamentsService
       },
     });
 
-    return mapToFullModel(tournament);
+    return this.mapToFullModel(tournament);
   }
 
   async leave(id: string, userId: string): Promise<TournamentModel | null> {
@@ -298,7 +303,30 @@ export class TournamentsService
       },
     });
 
-    return mapToFullModel(tournament);
+    return this.mapToFullModel(tournament);
+  }
+
+  async updateStatus(
+    id: string,
+    userId: string,
+    isActive: boolean,
+  ): Promise<TournamentModel> {
+    const tournamentRecord = await this.ensureTournamentExists(id);
+    this.validateTournamentOwnership(tournamentRecord, userId);
+
+    const tournament = await this.tournament.update({
+      where: { id },
+      data: {
+        isActive,
+      },
+      include: {
+        participants: true,
+        user: true,
+        images: true,
+      },
+    });
+
+    return this.mapToFullModel(tournament);
   }
 
   async removeUser(
@@ -320,7 +348,7 @@ export class TournamentsService
       },
     });
 
-    return mapToFullModel(tournament);
+    return this.mapToFullModel(tournament);
   }
 
   // Helper functions
@@ -367,61 +395,65 @@ export class TournamentsService
     return tournament;
   }
 
-  computeStatus = (tournament: TornamentPayload): string => {
+  computeStatus = (tournament: TornamentPayload): TournamentStatus => {
     const now = new Date();
-    if (now < tournament.dateStart) return 'pending';
+    if (now < tournament.dateStart) return TournamentStatus.UPCOMING;
     if (now >= tournament.dateStart && now < tournament.dateEnd)
-      return 'active';
-    return 'finished';
+      return TournamentStatus.ONGOING;
+    return TournamentStatus.FINISHED;
+  };
+
+  // Mapping from Pyload to model
+
+  mapToBaseModel = (tournament: TornamentPayload): TournamentBaseModel => {
+    return {
+      id: tournament.id,
+      title: tournament.title,
+      description: tournament.description,
+      dateStart: tournament.dateStart,
+      dateEnd: tournament.dateEnd,
+      location: tournament.location,
+      maxParticipants: tournament.maxParticipants,
+      createdAt: tournament.createdAt,
+      updatedAt: tournament.updatedAt,
+      entryFee: tournament.entryFee,
+      prizePool: tournament.prizePool,
+      images: tournament.images,
+      participants: tournament.participants.map(
+        (participant) => participant.id,
+      ),
+      sportType: tournament.sportType,
+      isActive: tournament.isActive,
+      geoCoordinates: {
+        latitude: tournament.latitude,
+        longitude: tournament.longitude,
+      },
+      status: this.computeStatus(tournament),
+    };
+  };
+
+  mapToFullModel = (tournament: TornamentPayload): TournamentModel => {
+    const { latitude, longitude, minAge, maxAge, user, participants, ...rest } =
+      tournament;
+
+    return {
+      ...rest,
+      geoCoordinates: {
+        latitude: latitude,
+        longitude: longitude,
+      },
+      ageRestrictions: { minAge: minAge, maxAge: maxAge },
+      organizer: {
+        ...user,
+      },
+      status: this.computeStatus(tournament),
+      participants: participants.map((participant) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { phoneNumber, ...rest } = participant;
+        return {
+          ...rest,
+        };
+      }),
+    };
   };
 }
-
-// Mapping from Pyload to model
-
-const mapToBaseModel = (tournament: TornamentPayload): TournamentBaseModel => {
-  return {
-    id: tournament.id,
-    title: tournament.title,
-    description: tournament.description,
-    dateStart: tournament.dateStart,
-    dateEnd: tournament.dateEnd,
-    location: tournament.location,
-    maxParticipants: tournament.maxParticipants,
-    createdAt: tournament.createdAt,
-    updatedAt: tournament.updatedAt,
-    entryFee: tournament.entryFee,
-    prizePool: tournament.prizePool,
-    images: tournament.images,
-    participants: tournament.participants.map((participant) => participant.id),
-    sportType: tournament.sportType,
-    status: tournament.status,
-    geoCoordinates: {
-      latitude: tournament.latitude,
-      longitude: tournament.longitude,
-    },
-  };
-};
-
-const mapToFullModel = (tournament: TornamentPayload): TournamentModel => {
-  const { latitude, longitude, minAge, maxAge, user, participants, ...rest } =
-    tournament;
-
-  return {
-    ...rest,
-    geoCoordinates: {
-      latitude: latitude,
-      longitude: longitude,
-    },
-    ageRestrictions: { minAge: minAge, maxAge: maxAge },
-    organizer: {
-      ...user,
-    },
-    participants: participants.map((participant) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { phoneNumber, ...rest } = participant;
-      return {
-        ...rest,
-      };
-    }),
-  };
-};

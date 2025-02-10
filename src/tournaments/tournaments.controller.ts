@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   Patch,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import { QueryTournamentsDto, TournamentsService } from './tournaments.service';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
@@ -54,13 +55,22 @@ export class TournamentsController {
     return await this.tournamentsService.updateTournament(id, userId, dto);
   }
 
-  @Patch(':id')
+  @Patch(':id/user')
   async RemoveUser(
     @Param('id') id: string,
     @CurrentUserId() userId: string,
     @Query('participantId') participantId: string,
   ) {
     return await this.tournamentsService.removeUser(id, userId, participantId);
+  }
+
+  @Patch(':id/status')
+  async UpdateStatus(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Query('isActive', ParseBoolPipe) isActive: boolean,
+  ) {
+    return await this.tournamentsService.updateStatus(id, userId, isActive);
   }
 
   @Delete(':id')
