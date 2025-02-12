@@ -32,36 +32,6 @@ enum TournamentFormat {
   SQUAD
 }
 
-model Tournament {
-  id              String                @id @default(uuid(7)) @db.Uuid
-  sportType       TournamentSport       @map("sport_type")
-  city            String
-  location        String
-  latitude        Float
-  longitude       Float
-  dateStart       DateTime              @map("date_start") @db.Timestamptz()
-  dateEnd         DateTime              @map("date_end") @db.Timestamptz()
-  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt       DateTime              @default(now()) @map("updated_at") @db.Timestamptz()
-  entryFee        Decimal               @map("entry_fee")
-  prizePool       Decimal               @map("prize_pool")
-  minAge          Int?                  @map("min_age")
-  maxAge          Int?                  @map("max_age")
-  skillLevel      TournamentSkillLevel? @map("skill_level")
-  format          TournamentFormat?
-  maxParticipants Int                   @map("max_participants")
-  title           String
-  description     String
-  isActive        Boolean               @default(true)
-  images          Image[]
-  rules           String?
-  createdBy       String                @map("created_by")
-  user            User                  @relation(name: "TournamentsCreator", fields: [createdBy], references: [id])
-  participants    User[]                @relation(name: "TournamentParticipants")
-
-  @@map("tournaments")
-}
-
 model Image {
   id           String     @id @default(uuid(7)) @db.Uuid
   createdAt    DateTime   @map("created_at") @db.Timestamptz()
@@ -74,20 +44,62 @@ model Image {
   @@map("images")
 }
 
+model Tournament {
+  id              String                  @id @default(uuid(7)) @db.Uuid
+  sportType       TournamentSport         @map("sport_type")
+  city            String
+  location        String
+  latitude        Float
+  longitude       Float
+  dateStart       DateTime                @map("date_start") @db.Timestamptz()
+  dateEnd         DateTime                @map("date_end") @db.Timestamptz()
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime                @default(now()) @map("updated_at") @db.Timestamptz()
+  entryFee        Decimal                 @map("entry_fee")
+  prizePool       Decimal                 @map("prize_pool")
+  minAge          Int?                    @map("min_age")
+  maxAge          Int?                    @map("max_age")
+  skillLevel      TournamentSkillLevel?   @map("skill_level")
+  format          TournamentFormat?
+  maxParticipants Int                     @map("max_participants")
+  title           String
+  description     String
+  isActive        Boolean                 @default(true)
+  images          Image[]
+  rules           String?
+  createdBy       String                  @map("created_by")
+  user            User                    @relation(name: "TournamentsCreator", fields: [createdBy], references: [id])
+  participants    TournamentParticipant[]
+
+  @@map("tournaments")
+}
+
+model TournamentParticipant {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  joinedAt     DateTime   @default(now()) @map("joined_at") @db.Timestamptz()
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  tournamentId String     @map("tournament_id") @db.Uuid
+  user         User       @relation(fields: [userId], references: [id])
+  userId       String     @map("user_id")
+
+  @@unique([tournamentId, userId])
+  @@map("tournament_participants")
+}
+
 model User {
-  id                       String       @id @unique
-  email                    String       @unique
-  firstName                String?      @map("first_name")
-  lastName                 String?      @map("last_name")
-  imageUrl                 String?      @map("img_url")
-  phoneNumber              String?      @map("phone_number")
-  organizerName            String?      @map("organizer_name")
-  organizerEmail           String?      @map("organizer_email")
-  organizerPhone           String?      @map("organizer_phone")
-  organizerDetails         String?      @map("organizer_details")
-  isVerified               Boolean      @default(false) @map("is_verified")
-  tournamentsCreated       Tournament[] @relation(name: "TournamentsCreator")
-  tournamentsParticipating Tournament[] @relation(name: "TournamentParticipants")
+  id                       String                  @id @unique
+  email                    String                  @unique
+  firstName                String?                 @map("first_name")
+  lastName                 String?                 @map("last_name")
+  imageUrl                 String?                 @map("img_url")
+  phoneNumber              String?                 @map("phone_number")
+  organizerName            String?                 @map("organizer_name")
+  organizerEmail           String?                 @map("organizer_email")
+  organizerPhone           String?                 @map("organizer_phone")
+  organizerDetails         String?                 @map("organizer_details")
+  isVerified               Boolean                 @default(false) @map("is_verified")
+  tournamentsCreated       Tournament[]            @relation(name: "TournamentsCreator")
+  tournamentsParticipating TournamentParticipant[]
 
   @@map("users")
 }

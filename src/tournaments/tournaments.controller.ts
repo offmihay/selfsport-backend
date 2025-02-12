@@ -9,6 +9,7 @@ import {
   Query,
   Patch,
   ParseBoolPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { QueryTournamentsDto, TournamentsService } from './tournaments.service';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
@@ -19,8 +20,11 @@ export class TournamentsController {
   constructor(private readonly tournamentsService: TournamentsService) {}
 
   @Get()
-  async getTournaments(@Query() query: QueryTournamentsDto) {
-    return await this.tournamentsService.getTournaments(query);
+  async getTournaments(
+    @Query() query: QueryTournamentsDto,
+    @CurrentUserId() userId: string,
+  ) {
+    return await this.tournamentsService.getTournaments(query, userId);
   }
 
   @Post()
@@ -28,22 +32,24 @@ export class TournamentsController {
     @Body() dto: TournamentDto,
     @CurrentUserId() userId: string,
   ) {
-    return await this.tournamentsService.createTournament(userId, dto);
+    return await this.tournamentsService.createTournament(dto, userId);
   }
 
-  @Get('created')
-  async getCreatedTournaments(@CurrentUserId() userId: string) {
-    return await this.tournamentsService.getCreatedTournaments(userId);
-  }
-
-  @Get('participated')
-  async getParticipatedTournaments(@CurrentUserId() userId: string) {
-    return await this.tournamentsService.getParticipatedTournaments(userId);
+  @Get('my')
+  async getMyTournaments(
+    @CurrentUserId() userId: string,
+    @Query('finished', new DefaultValuePipe(false), ParseBoolPipe)
+    isFinished: boolean,
+  ) {
+    return await this.tournamentsService.getMyTournaments(userId, isFinished);
   }
 
   @Get(':id')
-  async getTournamentById(@Param('id') id: string) {
-    return await this.tournamentsService.getTournamentById(id);
+  async getTournamentById(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return await this.tournamentsService.getTournamentById(id, userId);
   }
 
   @Put(':id')

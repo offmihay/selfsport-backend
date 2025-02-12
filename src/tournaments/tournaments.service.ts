@@ -22,12 +22,22 @@ import { SortTournamentsDto } from './dto/sort.dto';
 import { TournamentStatus } from 'src/common/types/tournament.types';
 
 type TornamentPayload = Prisma.TournamentGetPayload<{
-  include: { images: true; participants: true; user: true };
+  include: {
+    images: true;
+    user: true;
+    participants: { include: { user: true } };
+  };
 }>;
 
 type TournamentModel = Omit<
   TornamentPayload,
-  'latitude' | 'longitude' | 'minAge' | 'maxAge' | 'user' | 'participants'
+  | 'latitude'
+  | 'longitude'
+  | 'minAge'
+  | 'maxAge'
+  | 'user'
+  | 'participants'
+  | 'joinedAt'
 > & {
   geoCoordinates: {
     latitude: number;
@@ -35,8 +45,11 @@ type TournamentModel = Omit<
   };
   ageRestrictions?: { minAge: number | null; maxAge: number | null };
   organizer: TornamentPayload['user'];
-  participants: Omit<TornamentPayload['user'], 'phoneNumber'>[];
+  participants: Omit<TornamentPayload['user'], 'phoneNumber' | 'isVerified'>[];
   status: TournamentStatus;
+  participantsCount: number;
+  role: 'participant' | 'organizer' | null;
+  joinedCreatedAt?: Date;
 };
 
 type TournamentBaseModel = Pick<
@@ -56,10 +69,11 @@ type TournamentBaseModel = Pick<
   | 'sportType'
   | 'isActive'
   | 'geoCoordinates'
-> & {
-  participants: string[];
-  status: TournamentStatus;
-};
+  | 'status'
+  | 'participantsCount'
+  | 'role'
+  | 'joinedCreatedAt'
+>;
 
 export class QueryTournamentsDto extends IntersectionType(
   FilterTournamentsDto,
@@ -90,14 +104,17 @@ export class TournamentsService
     await this.$disconnect();
   }
 
-  async getTournaments(filters: QueryTournamentsDto) {
+  async getTournaments(filters: QueryTournamentsDto, userId: string) {
     const { page = 1, limit = 10 } = filters;
     const skip = (page - 1) * limit;
 
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
-        participants: true,
+        user: true,
+        participants: {
+          include: { user: true },
+        },
       },
       where: {
         isActive: true,
@@ -142,10 +159,12 @@ export class TournamentsService
       skip,
       take: limit,
     });
-    return tournaments.map(this.mapToBaseModel);
+    return tournaments.map((tournament) =>
+      this.mapToBaseModel(tournament, userId),
+    );
   }
 
-  async createTournament(userId: string, data: TournamentDto) {
+  async createTournament(data: TournamentDto, userId: string) {
     const { geoCoordinates, ageRestrictions, images, ...rest } = data;
 
     const transformedimages = await this.filesService.transformImages(images);
@@ -166,54 +185,133 @@ export class TournamentsService
       },
     });
 
-    return await this.getTournamentById(tournament.id);
+    return await this.getTournamentById(tournament.id, userId);
   }
 
-  async getCreatedTournaments(userId: string): Promise<TournamentBaseModel[]> {
+  async getCreatedTournaments(
+    userId: string,
+    isFinished: boolean,
+  ): Promise<(TornamentPayload & { dateSort: Date })[]> {
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
-        participants: true,
+        participants: {
+          include: { user: true },
+        },
+        user: true,
       },
       where: {
         createdBy: userId,
+        AND: [
+          isFinished
+            ? {
+                OR: [{ dateEnd: { lte: new Date() } }, { isActive: false }],
+              }
+            : {
+                dateEnd: { gt: new Date() },
+                isActive: true,
+              },
+        ],
       },
     });
 
-    return tournaments.map(this.mapToBaseModel);
+    return tournaments.map((t) => ({
+      ...t,
+      dateSort: t.createdAt,
+    }));
   }
 
   async getParticipatedTournaments(
     userId: string,
-  ): Promise<TournamentBaseModel[]> {
+    isFinished: boolean,
+  ): Promise<(TornamentPayload & { dateSort: Date })[]> {
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
-        participants: true,
+        participants: {
+          include: { user: true },
+        },
+        user: true,
       },
       where: {
-        isActive: true,
-        participants: { some: { id: userId } },
+        participants: { some: { userId } },
+        AND: [
+          isFinished
+            ? {
+                OR: [{ dateEnd: { lte: new Date() } }, { isActive: false }],
+              }
+            : {
+                dateEnd: { gt: new Date() },
+                isActive: true,
+              },
+        ],
       },
     });
 
-    return tournaments.map(this.mapToBaseModel);
+    return tournaments.map((t) => ({
+      ...t,
+      dateSort:
+        t.participants.find((p) => p.userId === userId)?.joinedAt ??
+        new Date(0),
+    }));
   }
 
-  async getTournamentById(id: string): Promise<TournamentModel> {
+  async getMyTournaments(
+    userId: string,
+    isFinished: boolean,
+  ): Promise<TournamentBaseModel[]> {
+    const createdTournaments = await this.getCreatedTournaments(
+      userId,
+      isFinished,
+    );
+    const participatedTournaments = await this.getParticipatedTournaments(
+      userId,
+      isFinished,
+    );
+
+    const tournamentMap = new Map<
+      string,
+      TornamentPayload & { dateSort: Date }
+    >();
+
+    createdTournaments.forEach((tournament) => {
+      tournamentMap.set(tournament.id, tournament);
+    });
+
+    participatedTournaments.forEach((tournament) => {
+      if (!tournamentMap.has(tournament.id)) {
+        tournamentMap.set(tournament.id, tournament);
+      }
+    });
+
+    const tournaments = Array.from(tournamentMap.values()).sort(
+      (a, b) => b.dateSort.getTime() - a.dateSort.getTime(),
+    );
+
+    return tournaments.map((tournament) =>
+      this.mapToBaseModel(tournament, userId),
+    );
+  }
+
+  async getTournamentById(
+    id: string,
+    userId?: string,
+  ): Promise<TournamentModel> {
     const tournamentRecord = await this.tournament.findUnique({
       where: { id },
       include: {
         images: true,
         user: true,
-        participants: true,
+        participants: {
+          include: { user: true },
+        },
       },
     });
 
     if (!tournamentRecord) {
       throw new TournamentNotFoundException();
     }
-    return this.mapToFullModel(tournamentRecord);
+    return this.mapToFullModel(tournamentRecord, userId);
   }
 
   async updateTournament(
@@ -244,13 +342,15 @@ export class TournamentsService
         },
       },
       include: {
-        participants: true,
+        participants: {
+          include: { user: true },
+        },
         user: true,
         images: true,
       },
     });
 
-    return this.mapToFullModel(tournament);
+    return this.mapToFullModel(tournament, userId);
   }
 
   async deleteTournament(
@@ -273,37 +373,50 @@ export class TournamentsService
 
   async register(id: string, userId: string): Promise<TournamentModel | null> {
     const tournamentRecord = await this.ensureTournamentExists(id);
+    this.ensureTournamentActive(tournamentRecord);
     this.validateUserParticipation(tournamentRecord, userId, true);
     this.validateMaxNotExceeded(tournamentRecord);
 
-    const tournament = await this.tournament.update({
-      where: { id },
-      data: { participants: { connect: { id: userId } } },
-      include: {
-        participants: true,
-        user: true,
-        images: true,
+    await this.tournamentParticipant.create({
+      data: {
+        userId,
+        tournamentId: id,
       },
     });
 
-    return this.mapToFullModel(tournament);
+    return this.getTournamentById(id, userId);
   }
 
   async leave(id: string, userId: string): Promise<TournamentModel | null> {
     const tournamentRecord = await this.ensureTournamentExists(id);
     this.validateUserParticipation(tournamentRecord, userId, false);
 
-    const tournament = await this.tournament.update({
-      where: { id },
-      data: { participants: { disconnect: { id: userId } } },
-      include: {
-        participants: true,
-        user: true,
-        images: true,
+    await this.tournamentParticipant.delete({
+      where: {
+        tournamentId_userId: { tournamentId: id, userId },
       },
     });
 
-    return this.mapToFullModel(tournament);
+    return this.getTournamentById(id, userId);
+  }
+
+  async removeUser(
+    id: string,
+    userId: string,
+    participantId: string,
+  ): Promise<TournamentModel | null> {
+    const tournamentRecord = await this.ensureTournamentExists(id);
+    this.validateTournamentOwnership(tournamentRecord, userId);
+    this.validateUserParticipation(tournamentRecord, participantId, false);
+
+    await this.tournamentParticipant.deleteMany({
+      where: {
+        tournamentId: id,
+        userId: participantId,
+      },
+    });
+
+    return this.getTournamentById(id, userId);
   }
 
   async updateStatus(
@@ -320,35 +433,15 @@ export class TournamentsService
         isActive,
       },
       include: {
-        participants: true,
+        participants: {
+          include: { user: true },
+        },
         user: true,
         images: true,
       },
     });
 
-    return this.mapToFullModel(tournament);
-  }
-
-  async removeUser(
-    id: string,
-    userId: string,
-    participantId: string,
-  ): Promise<TournamentModel | null> {
-    const tournamentRecord = await this.ensureTournamentExists(id);
-    this.validateTournamentOwnership(tournamentRecord, userId);
-    this.validateUserParticipation(tournamentRecord, participantId, false);
-
-    const tournament = await this.tournament.update({
-      where: { id },
-      data: { participants: { disconnect: { id: participantId } } },
-      include: {
-        participants: true,
-        user: true,
-        images: true,
-      },
-    });
-
-    return this.mapToFullModel(tournament);
+    return this.mapToFullModel(tournament, userId);
   }
 
   // Helper functions
@@ -356,6 +449,17 @@ export class TournamentsService
   async ensureTournamentExists(id: string): Promise<TournamentModel> {
     const tournament = await this.getTournamentById(id);
     if (!tournament) {
+      throw new TournamentNotFoundException();
+    }
+    return tournament;
+  }
+
+  ensureTournamentActive(tournament: TournamentModel): TournamentModel {
+    const tournamentStatus = this.computeStatus(tournament);
+    if (
+      !tournament.isActive ||
+      tournamentStatus === TournamentStatus.FINISHED
+    ) {
       throw new TournamentNotFoundException();
     }
     return tournament;
@@ -376,6 +480,7 @@ export class TournamentsService
     const isUserParticipating = tournament.participants
       .map((p) => p.id)
       .includes(userId);
+
     if (isUserParticipating && shouldBeRegisted) {
       throw new AlreadyRegisteredException();
     }
@@ -395,7 +500,9 @@ export class TournamentsService
     return tournament;
   }
 
-  computeStatus = (tournament: TornamentPayload): TournamentStatus => {
+  computeStatus = (
+    tournament: TornamentPayload | TournamentModel,
+  ): TournamentStatus => {
     const now = new Date();
     if (now < tournament.dateStart) return TournamentStatus.UPCOMING;
     if (now >= tournament.dateStart && now < tournament.dateEnd)
@@ -403,9 +510,23 @@ export class TournamentsService
     return TournamentStatus.FINISHED;
   };
 
-  // Mapping from Pyload to model
+  computeRole = (
+    tournament: TornamentPayload,
+    userId?: string,
+  ): TournamentModel['role'] => {
+    if (!userId) return null;
+    const isParticipant =
+      tournament.participants.filter((p) => p.user.id === userId).length !== 0;
+    const isOrganizer = tournament.createdBy === userId;
+    return isOrganizer ? 'organizer' : isParticipant ? 'participant' : null;
+  };
 
-  mapToBaseModel = (tournament: TornamentPayload): TournamentBaseModel => {
+  // Mapping from Payload to model
+
+  mapToBaseModel = (
+    tournament: TornamentPayload & { dateSort?: Date },
+    userId?: string,
+  ): TournamentBaseModel => {
     return {
       id: tournament.id,
       title: tournament.title,
@@ -419,41 +540,49 @@ export class TournamentsService
       entryFee: tournament.entryFee,
       prizePool: tournament.prizePool,
       images: tournament.images,
-      participants: tournament.participants.map(
-        (participant) => participant.id,
-      ),
+      participantsCount: tournament.participants.length,
       sportType: tournament.sportType,
       isActive: tournament.isActive,
+      role: this.computeRole(tournament, userId),
       geoCoordinates: {
         latitude: tournament.latitude,
         longitude: tournament.longitude,
       },
       status: this.computeStatus(tournament),
+      joinedCreatedAt: tournament.dateSort,
     };
   };
 
-  mapToFullModel = (tournament: TornamentPayload): TournamentModel => {
+  mapToFullModel = (
+    tournament: TornamentPayload & { dateSort?: Date },
+    userId?: string,
+  ): TournamentModel => {
     const { latitude, longitude, minAge, maxAge, user, participants, ...rest } =
       tournament;
 
     return {
       ...rest,
       geoCoordinates: {
-        latitude: latitude,
-        longitude: longitude,
+        latitude,
+        longitude,
       },
-      ageRestrictions: { minAge: minAge, maxAge: maxAge },
-      organizer: {
-        ...user,
-      },
+      ageRestrictions: { minAge, maxAge },
+      organizer: { ...user },
       status: this.computeStatus(tournament),
-      participants: participants.map((participant) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { phoneNumber, ...rest } = participant;
-        return {
-          ...rest,
-        };
-      }),
+      role: this.computeRole(tournament, userId),
+      participantsCount: participants.length,
+      participants: participants
+        .filter((p) => p.user)
+        .map(({ user }) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { phoneNumber, isVerified, ...userWithoutSensitiveData } =
+            user!;
+          return userWithoutSensitiveData;
+        }),
+      joinedCreatedAt:
+        tournament.dateSort ||
+        tournament.participants.find((p) => p.user.id === userId)?.joinedAt ||
+        tournament.createdAt,
     };
   };
 }
