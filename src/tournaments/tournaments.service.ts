@@ -364,6 +364,12 @@ export class TournamentsService
       where: { tournamentId: id },
     });
 
+    await this.tournamentParticipant.deleteMany({
+      where: {
+        tournamentId: id,
+      },
+    });
+
     await this.tournament.delete({
       where: { id },
     });

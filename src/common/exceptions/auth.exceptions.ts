@@ -6,7 +6,7 @@ export class NoTokenProvidedException extends UnauthorizedException {
       statusCode: 401,
       error: 'Unauthorized',
       message: 'No token provided',
-      code: 'NO_TOKEN_PROVIDED',
+      code: 'no_token_provided',
     });
   }
 }
@@ -17,7 +17,7 @@ export class InvalidTokenException extends UnauthorizedException {
       statusCode: 401,
       error: 'Unauthorized',
       message: 'Invalid token',
-      code: 'INVALID_TOKEN',
+      code: 'invalid_token',
     });
   }
 }

@@ -10,7 +10,7 @@ export class TournamentNotFoundException extends NotFoundException {
       statusCode: 404,
       error: 'Not Found',
       message: `Tournament not found`,
-      code: 'TOURNAMENT_NOT_FOUND',
+      code: 'tournament_not_found',
     });
   }
 }
@@ -21,7 +21,7 @@ export class AlreadyRegisteredException extends ConflictException {
       statusCode: 409,
       error: 'Conflict',
       message: 'User is already registered for this tournament',
-      code: 'TOURNAMENT_ALREADY_REGISTERED',
+      code: 'tournament_already_registered',
     });
   }
 }
@@ -32,7 +32,7 @@ export class NotRegisteredException extends ConflictException {
       statusCode: 409,
       error: 'Conflict',
       message: 'User is not registered for this tournament',
-      code: 'TOURNAMENT_NOT_REGISTERED',
+      code: 'tournament_not_registered',
     });
   }
 }
@@ -43,7 +43,7 @@ export class MaxParticipantsReachedException extends ConflictException {
       statusCode: 409,
       error: 'Conflict',
       message: 'Maximum number of participants reached',
-      code: 'MAX_PARTICIPANTS_REACHED',
+      code: 'max_participants_reached',
     });
   }
 }

@@ -18,7 +18,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const errorType = exceptionResponse?.error || 'Error';
     const message = exceptionResponse?.message || 'Something went wrong';
-    const code = exceptionResponse?.code || HttpStatus[status] || 500;
+    const code =
+      exceptionResponse?.code || HttpStatus[status].toLowerCase() || 500;
 
     response.status(status).json({
       statusCode: status,
