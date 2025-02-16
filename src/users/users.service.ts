@@ -1,4 +1,7 @@
-import { UserJSON } from '@clerk/backend/dist/api/resources/JSON';
+import {
+  DeletedObjectJSON,
+  UserJSON,
+} from '@clerk/backend/dist/api/resources/JSON';
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
@@ -47,6 +50,15 @@ export class UsersService
       data: {
         email: data.email_addresses[0].email_address,
         ...this.transformData(data),
+      },
+    });
+    return data;
+  }
+
+  async deleteUser(data: DeletedObjectJSON) {
+    await this.user.delete({
+      where: {
+        id: data.id,
       },
     });
     return data;

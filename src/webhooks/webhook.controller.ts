@@ -50,8 +50,9 @@ export class WebhooksController {
       case 'user.updated':
         await this.usersService.updateUser(evt.data);
         break;
-      default:
-        console.warn('Unhandled event type:', evt.type);
+      case 'user.deleted':
+        await this.usersService.deleteUser(evt.data);
+        break;
     }
 
     return { success: true, message: 'Webhook verified and processed' };
