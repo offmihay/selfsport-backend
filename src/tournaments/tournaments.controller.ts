@@ -4,6 +4,7 @@ import {
   Get,
   Delete,
   Put,
+  Headers,
   Post,
   Param,
   Query,
@@ -14,16 +15,20 @@ import {
 import { QueryTournamentsDto, TournamentsService } from './tournaments.service';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { TournamentDto } from './dto/tournaments.dto';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('tournaments')
 export class TournamentsController {
   constructor(private readonly tournamentsService: TournamentsService) {}
 
   @Get()
+  @Public()
   async getTournaments(
     @Query() query: QueryTournamentsDto,
     @CurrentUserId() userId: string,
+    @Headers('X-Forwarded-For') xForwardedFor: string,
   ) {
+    console.log(`X-Forwarded-For: ${xForwardedFor}`);
     return await this.tournamentsService.getTournaments(query, userId);
   }
 
