@@ -8,6 +8,6 @@ export class SortTournamentsDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['dateStart', 'prizePool', 'dateCreated'])
-  sortBy?: 'dateStart' | 'prizePool' | 'dateCreated';
+  @IsIn(['dateStart', 'prizePool', 'createdAt'])
+  sortBy?: 'dateStart' | 'prizePool' | 'createdAt';
 }

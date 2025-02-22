@@ -10,6 +10,23 @@ import {
 import { Transform, Type } from 'class-transformer';
 import { TournamentSkillLevel, TournamentSport } from '@prisma/client';
 
+export class LocationDto {
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  lat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  lng?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  radius?: number;
+}
+
 export class RangeDto {
   @IsOptional()
   @Type(() => Number)
@@ -22,7 +39,7 @@ export class RangeDto {
   max?: number;
 }
 
-export class FilterTournamentsDto {
+export class FilterTournamentsDto extends LocationDto {
   @IsOptional()
   @IsEnum(TournamentSport, { each: true })
   @IsArray()

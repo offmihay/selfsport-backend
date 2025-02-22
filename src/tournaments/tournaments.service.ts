@@ -20,6 +20,7 @@ import { IntersectionType } from '@nestjs/mapped-types';
 import { PaginationDto } from './dto/pagination.dto';
 import { SortTournamentsDto } from './dto/sort.dto';
 import { TournamentStatus } from 'src/common/types/tournament.types';
+import { v4 as uuidv4 } from 'uuid';
 
 type TornamentPayload = Prisma.TournamentGetPayload<{
   include: {
@@ -45,7 +46,10 @@ type TournamentModel = Omit<
   };
   ageRestrictions?: { minAge: number | null; maxAge: number | null };
   organizer: TornamentPayload['user'];
-  participants: Omit<TornamentPayload['user'], 'phoneNumber' | 'isVerified'>[];
+  participants: Pick<
+    TornamentPayload['user'],
+    'email' | 'firstName' | 'lastName' | 'id' | 'imageUrl'
+  >[];
   status: TournamentStatus;
   participantsCount: number;
   role: 'participant' | 'organizer' | null;
@@ -104,20 +108,50 @@ export class TournamentsService
     await this.$disconnect();
   }
 
+  async getTournamentIdsByLocation(location: {
+    lat: number;
+    lng: number;
+    radius: number;
+  }): Promise<string[]> {
+    const radiusInMeters = location.radius * 1000;
+
+    const spatialResult: Array<{ id: string }> = await this.$queryRaw`
+      SELECT t.id
+      FROM "tournaments" t
+      JOIN "locations" l ON t."coordsId" = l.id
+      WHERE ST_DWithin(
+        l.coords::geography,
+        ST_SetSRID(ST_MakePoint(${Number(location.lng)}, ${Number(location.lat)}), 4326)::geography,
+        ${radiusInMeters}
+      )
+    `;
+    return spatialResult.map((row) => row.id);
+  }
+
   async getTournaments(filters: QueryTournamentsDto, userId: string) {
-    const { page = 1, limit = 10 } = filters;
+    const { page = 1, limit = 10, lat, lng, radius } = filters;
     const skip = (page - 1) * limit;
+
+    let spatialFilter = {};
+
+    if (lat && lng && radius) {
+      const tournamentIds = await this.getTournamentIdsByLocation({
+        lat,
+        lng,
+        radius,
+      });
+      spatialFilter = { id: { in: tournamentIds } };
+    }
 
     const tournaments = await this.tournament.findMany({
       include: {
         images: true,
         user: true,
-        participants: {
-          include: { user: true },
-        },
+        participants: { include: { user: true } },
       },
       where: {
         isActive: true,
+        ...spatialFilter,
         sportType: filters.sportType?.length
           ? { in: filters.sportType }
           : undefined,
@@ -133,10 +167,7 @@ export class TournamentsService
           lte: filters.entryFee?.max,
         },
         title: filters.search
-          ? {
-              contains: filters.search,
-              mode: 'insensitive',
-            }
+          ? { contains: filters.search, mode: 'insensitive' }
           : undefined,
         AND: filters.date
           ? [
@@ -147,11 +178,7 @@ export class TournamentsService
                 dateEnd: { gte: new Date(filters.date.setHours(0, 0, 0, 0)) },
               },
             ]
-          : [
-              {
-                dateStart: { gte: new Date() },
-              },
-            ],
+          : [{ dateStart: { gte: new Date() } }],
       },
       orderBy: filters.sortBy
         ? { [filters.sortBy]: filters.sortOrder || 'asc' }
@@ -159,15 +186,32 @@ export class TournamentsService
       skip,
       take: limit,
     });
+
     return tournaments.map((tournament) =>
       this.mapToBaseModel(tournament, userId),
     );
   }
 
+  async createLocation(data: {
+    latitude: number;
+    longitude: number;
+  }): Promise<string> {
+    const pointWKT = `SRID=4326;POINT(${data.longitude} ${data.latitude})`;
+    const newId = uuidv4();
+
+    const locationResult: Array<{ id: string }> = await this.$queryRaw`
+      INSERT INTO "locations" ("id", "coords")
+      VALUES (${newId}::uuid, ST_GeomFromText(${pointWKT}, 4326))
+      RETURNING id;
+    `;
+    return locationResult[0].id;
+  }
+
   async createTournament(data: TournamentDto, userId: string) {
     const { geoCoordinates, ageRestrictions, images, ...rest } = data;
+    const transformedImages = await this.filesService.transformImages(images);
 
-    const transformedimages = await this.filesService.transformImages(images);
+    const coordsId = await this.createLocation(geoCoordinates);
 
     const tournament = await this.tournament.create({
       data: {
@@ -176,18 +220,16 @@ export class TournamentsService
         longitude: geoCoordinates.longitude,
         minAge: ageRestrictions?.minAge,
         maxAge: ageRestrictions?.maxAge,
+        coordsId: coordsId,
         images: {
-          create: transformedimages,
+          create: transformedImages,
         },
-        user: {
-          connect: { id: userId },
-        },
+        createdBy: userId,
       },
     });
 
     return await this.getTournamentById(tournament.id, userId);
   }
-
   async getCreatedTournaments(
     userId: string,
     isFinished: boolean,
@@ -329,6 +371,11 @@ export class TournamentsService
       where: { tournamentId: id },
     });
 
+    await this.location.deleteMany({
+      where: { id: tournamentRecord.coordsId },
+    });
+    const coordsId = await this.createLocation(geoCoordinates);
+
     const tournament = await this.tournament.update({
       where: { id },
       data: {
@@ -340,6 +387,7 @@ export class TournamentsService
         images: {
           create: transformedimages,
         },
+        coordsId,
       },
       include: {
         participants: {
@@ -362,6 +410,10 @@ export class TournamentsService
 
     await this.image.deleteMany({
       where: { tournamentId: id },
+    });
+
+    await this.location.deleteMany({
+      where: { id: tournamentRecord.coordsId },
     });
 
     await this.tournamentParticipant.deleteMany({
@@ -580,10 +632,14 @@ export class TournamentsService
       participants: participants
         .filter((p) => p.user)
         .map(({ user }) => {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { phoneNumber, isVerified, ...userWithoutSensitiveData } =
-            user!;
-          return userWithoutSensitiveData;
+          return {
+            email: user.email,
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            imageUrl: user.imageUrl,
+            // phoneNumber: user.phoneNumber,
+          };
         }),
       joinedCreatedAt:
         tournament.dateSort ||

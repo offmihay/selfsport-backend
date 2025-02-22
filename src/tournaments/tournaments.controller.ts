@@ -11,15 +11,21 @@ import {
   Patch,
   ParseBoolPipe,
   DefaultValuePipe,
+  Req,
 } from '@nestjs/common';
 import { QueryTournamentsDto, TournamentsService } from './tournaments.service';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { TournamentDto } from './dto/tournaments.dto';
 import { Public } from 'src/decorators/public.decorator';
+import { LocationService } from 'src/locations/location.service';
+import { Request } from 'express';
 
 @Controller('tournaments')
 export class TournamentsController {
-  constructor(private readonly tournamentsService: TournamentsService) {}
+  constructor(
+    private readonly tournamentsService: TournamentsService,
+    private readonly locationService: LocationService,
+  ) {}
 
   @Get()
   @Public()
@@ -27,16 +33,29 @@ export class TournamentsController {
     @Query() query: QueryTournamentsDto,
     @CurrentUserId() userId: string,
     @Headers('X-Forwarded-For') xForwardedFor: string,
+    @Req() req: Request,
   ) {
-    console.log(`X-Forwarded-For: ${xForwardedFor}`);
+    const ip = xForwardedFor || req.ip;
+    if ((!query.lat || !query.lng) && ip) {
+      const location = await this.locationService.getLocationByIp(ip);
+      if (location) {
+        query.lat = location.lat;
+        query.lng = location.lng;
+      }
+    }
+    if (!query.radius) {
+      query.radius = 50;
+    }
     return await this.tournamentsService.getTournaments(query, userId);
   }
 
+  @Public()
   @Post()
   async createTournament(
     @Body() dto: TournamentDto,
-    @CurrentUserId() userId: string,
+    // @CurrentUserId() userId: string,
   ) {
+    const userId = 'user_2sdUIRdYMm8UXPurFfn5w6kzDSX';
     return await this.tournamentsService.createTournament(dto, userId);
   }
 
