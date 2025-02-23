@@ -49,13 +49,11 @@ export class TournamentsController {
     return await this.tournamentsService.getTournaments(query, userId);
   }
 
-  @Public()
   @Post()
   async createTournament(
     @Body() dto: TournamentDto,
-    // @CurrentUserId() userId: string,
+    @CurrentUserId() userId: string,
   ) {
-    const userId = 'user_2sdUIRdYMm8UXPurFfn5w6kzDSX';
     return await this.tournamentsService.createTournament(dto, userId);
   }
 
