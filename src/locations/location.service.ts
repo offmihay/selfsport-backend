@@ -37,7 +37,7 @@ export class LocationService {
     this.ipApiKey = this.configService.get<string>('IPAPI_KEY')!;
   }
 
-  async getIpApi(ip: string): Promise<Location | undefined> {
+  async getCoordsAPI(ip?: string): Promise<Location | undefined> {
     const url = `${this.ipApiUrl}/ipgeo?apiKey=${this.ipApiKey}&ip=${ip}`;
 
     try {
@@ -72,7 +72,7 @@ export class LocationService {
     if (cachedLocations.has(ip)) {
       return cachedLocations.get(ip);
     }
-    const location = await this.getIpApi(ip);
+    const location = await this.getCoordsAPI(ip);
     if (location) {
       cachedLocations.set(ip, location);
       return location;
