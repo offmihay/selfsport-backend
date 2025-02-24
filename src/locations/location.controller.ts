@@ -12,8 +12,7 @@ export class LocationController {
     @Headers('X-Forwarded-For') xForwardedFor: string,
     @Req() req: Request,
   ) {
-    // const ip = xForwardedFor || req.ip;
-    const ip = '109.197.218.217';
+    const ip = xForwardedFor || req.ip;
     const response = await this.locationService.getCoordsAPI(ip);
     if (!response) {
       throw new LocationNotFoundException();
