@@ -385,6 +385,7 @@ export class TournamentsService
         images: {
           create: transformedimages,
         },
+        isApproved: false,
       },
       include: {
         participants: {
