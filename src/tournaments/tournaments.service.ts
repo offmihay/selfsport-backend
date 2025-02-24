@@ -20,7 +20,6 @@ import { IntersectionType } from '@nestjs/mapped-types';
 import { PaginationDto } from './dto/pagination.dto';
 import { SortTournamentsDto } from './dto/sort.dto';
 import { TournamentStatus } from 'src/common/types/tournament.types';
-import { v4 as uuidv4 } from 'uuid';
 
 type TornamentPayload = Prisma.TournamentGetPayload<{
   include: {
@@ -118,9 +117,8 @@ export class TournamentsService
     const spatialResult: Array<{ id: string }> = await this.$queryRaw`
       SELECT t.id
       FROM "tournaments" t
-      JOIN "locations" l ON t."coordsId" = l.id
       WHERE ST_DWithin(
-        l.coords::geography,
+        t.coordinates::geography,
         ST_SetSRID(ST_MakePoint(${Number(location.lng)}, ${Number(location.lat)}), 4326)::geography,
         ${radiusInMeters}
       )
@@ -192,26 +190,27 @@ export class TournamentsService
     );
   }
 
-  async createLocation(data: {
-    latitude: number;
-    longitude: number;
-  }): Promise<string> {
-    const pointWKT = `SRID=4326;POINT(${data.longitude} ${data.latitude})`;
-    const newId = uuidv4();
+  // async addLocation(
+  //   data: {
+  //     latitude: number;
+  //     longitude: number;
+  //   },
+  //   tournamentId: string,
+  // ): Promise<string> {
+  //   const pointWKT = `SRID=4326;POINT(${data.longitude} ${data.latitude})`;
 
-    const locationResult: Array<{ id: string }> = await this.$queryRaw`
-      INSERT INTO "locations" ("id", "coords")
-      VALUES (${newId}::uuid, ST_GeomFromText(${pointWKT}, 4326))
-      RETURNING id;
-    `;
-    return locationResult[0].id;
-  }
+  //   const tournamentResponseId: string = await this.$queryRaw`
+  //     UPDATE "tournaments"
+  //     SET "coordinates" = ST_GeomFromText(${pointWKT}, 4326)
+  //     WHERE "id" = ${tournamentId}::uuid
+  //     RETURNING id;
+  //   `;
+  //   return tournamentResponseId;
+  // }
 
   async createTournament(data: TournamentDto, userId: string) {
     const { geoCoordinates, ageRestrictions, images, ...rest } = data;
     const transformedImages = await this.filesService.transformImages(images);
-
-    const coordsId = await this.createLocation(geoCoordinates);
 
     const tournament = await this.tournament.create({
       data: {
@@ -220,13 +219,13 @@ export class TournamentsService
         longitude: geoCoordinates.longitude,
         minAge: ageRestrictions?.minAge,
         maxAge: ageRestrictions?.maxAge,
-        coordsId: coordsId,
         images: {
           create: transformedImages,
         },
         createdBy: userId,
       },
     });
+    // await this.addLocation(geoCoordinates, tournament.id);
 
     return await this.getTournamentById(tournament.id, userId);
   }
@@ -371,11 +370,6 @@ export class TournamentsService
       where: { tournamentId: id },
     });
 
-    await this.location.deleteMany({
-      where: { id: tournamentRecord.coordsId },
-    });
-    const coordsId = await this.createLocation(geoCoordinates);
-
     const tournament = await this.tournament.update({
       where: { id },
       data: {
@@ -387,7 +381,6 @@ export class TournamentsService
         images: {
           create: transformedimages,
         },
-        coordsId,
       },
       include: {
         participants: {
@@ -397,6 +390,7 @@ export class TournamentsService
         images: true,
       },
     });
+    // await this.addLocation(geoCoordinates, tournament.id);
 
     return this.mapToFullModel(tournament, userId);
   }
@@ -410,10 +404,6 @@ export class TournamentsService
 
     await this.image.deleteMany({
       where: { tournamentId: id },
-    });
-
-    await this.location.deleteMany({
-      where: { id: tournamentRecord.coordsId },
     });
 
     await this.tournamentParticipant.deleteMany({

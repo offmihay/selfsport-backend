@@ -35,7 +35,8 @@ export class TournamentsController {
     @Headers('X-Forwarded-For') xForwardedFor: string,
     @Req() req: Request,
   ) {
-    const ip = xForwardedFor || req.ip;
+    // const ip = xForwardedFor || req.ip;
+    const ip = '109.197.218.217';
     if ((!query.lat || !query.lng) && ip) {
       const location = await this.locationService.getLocationByIp(ip);
       if (location) {

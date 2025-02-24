@@ -32,15 +32,6 @@ enum TournamentFormat {
   SQUAD
 }
 
-model Location {
-  id         String                               @id @default(uuid(7)) @db.Uuid
-  coords     Unsupported("geometry(Point, 4326)")
-  Tournament Tournament[]
-
-  @@index([coords], name: "location_idx", type: Gist)
-  @@map("locations")
-}
-
 model Image {
   id           String     @id @default(uuid(7)) @db.Uuid
   createdAt    DateTime   @map("created_at") @db.Timestamptz()
@@ -54,34 +45,34 @@ model Image {
 }
 
 model Tournament {
-  id              String                  @id @default(uuid(7)) @db.Uuid
-  sportType       TournamentSport         @map("sport_type")
+  id              String                               @id @default(uuid(7)) @db.Uuid
+  sportType       TournamentSport                      @map("sport_type")
   city            String
   location        String
   latitude        Float
   longitude       Float
-  dateStart       DateTime                @map("date_start") @db.Timestamptz()
-  dateEnd         DateTime                @map("date_end") @db.Timestamptz()
-  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt       DateTime                @default(now()) @map("updated_at") @db.Timestamptz()
-  entryFee        Decimal                 @map("entry_fee")
-  prizePool       Decimal                 @map("prize_pool")
-  minAge          Int?                    @map("min_age")
-  maxAge          Int?                    @map("max_age")
-  skillLevel      TournamentSkillLevel?   @map("skill_level")
+  dateStart       DateTime                             @map("date_start") @db.Timestamptz()
+  dateEnd         DateTime                             @map("date_end") @db.Timestamptz()
+  createdAt       DateTime                             @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime                             @default(now()) @map("updated_at") @db.Timestamptz()
+  entryFee        Decimal                              @map("entry_fee")
+  prizePool       Decimal                              @map("prize_pool")
+  minAge          Int?                                 @map("min_age")
+  maxAge          Int?                                 @map("max_age")
+  skillLevel      TournamentSkillLevel?                @map("skill_level")
   format          TournamentFormat?
-  maxParticipants Int                     @map("max_participants")
+  maxParticipants Int                                  @map("max_participants")
   title           String
   description     String
-  isActive        Boolean                 @default(true)
+  isActive        Boolean                              @default(true)
   images          Image[]
   rules           String?
-  createdBy       String                  @map("created_by")
-  user            User                    @relation(name: "TournamentsCreator", fields: [createdBy], references: [id])
+  createdBy       String                               @map("created_by")
+  user            User                                 @relation(name: "TournamentsCreator", fields: [createdBy], references: [id])
   participants    TournamentParticipant[]
-  coordsId        String                  @db.Uuid
-  coords          Location                @relation(fields: [coordsId], references: [id])
+  coordinates     Unsupported("geometry(Point, 4326)")?
 
+  @@index([coordinates], name: "coordinates_idx", type: Gist)
   @@map("tournaments")
 }
 
