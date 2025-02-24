@@ -16,7 +16,6 @@ import {
 import { QueryTournamentsDto, TournamentsService } from './tournaments.service';
 import { CurrentUserId } from 'src/decorators/current-user-id.decorator';
 import { TournamentDto } from './dto/tournaments.dto';
-import { Public } from 'src/decorators/public.decorator';
 import { LocationService } from 'src/locations/location.service';
 import { Request } from 'express';
 
@@ -28,7 +27,6 @@ export class TournamentsController {
   ) {}
 
   @Get()
-  @Public()
   async getTournaments(
     @Query() query: QueryTournamentsDto,
     @CurrentUserId() userId: string,

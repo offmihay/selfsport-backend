@@ -76,6 +76,7 @@ type TournamentBaseModel = Pick<
   | 'participantsCount'
   | 'role'
   | 'joinedCreatedAt'
+  | 'isApproved'
 >;
 
 export class QueryTournamentsDto extends IntersectionType(
@@ -149,6 +150,7 @@ export class TournamentsService
       },
       where: {
         isActive: true,
+        isApproved: true,
         ...spatialFilter,
         sportType: filters.sportType?.length
           ? { in: filters.sportType }
@@ -190,23 +192,23 @@ export class TournamentsService
     );
   }
 
-  // async addLocation(
-  //   data: {
-  //     latitude: number;
-  //     longitude: number;
-  //   },
-  //   tournamentId: string,
-  // ): Promise<string> {
-  //   const pointWKT = `SRID=4326;POINT(${data.longitude} ${data.latitude})`;
+  async addLocation(
+    data: {
+      latitude: number;
+      longitude: number;
+    },
+    tournamentId: string,
+  ): Promise<string> {
+    const pointWKT = `SRID=4326;POINT(${data.longitude} ${data.latitude})`;
 
-  //   const tournamentResponseId: string = await this.$queryRaw`
-  //     UPDATE "tournaments"
-  //     SET "coordinates" = ST_GeomFromText(${pointWKT}, 4326)
-  //     WHERE "id" = ${tournamentId}::uuid
-  //     RETURNING id;
-  //   `;
-  //   return tournamentResponseId;
-  // }
+    const tournamentResponseId: string = await this.$queryRaw`
+      UPDATE "tournaments"
+      SET "coordinates" = ST_GeomFromText(${pointWKT}, 4326)
+      WHERE "id" = ${tournamentId}::uuid
+      RETURNING id;
+    `;
+    return tournamentResponseId;
+  }
 
   async createTournament(data: TournamentDto, userId: string) {
     const { geoCoordinates, ageRestrictions, images, ...rest } = data;
@@ -225,7 +227,7 @@ export class TournamentsService
         createdBy: userId,
       },
     });
-    // await this.addLocation(geoCoordinates, tournament.id);
+    await this.addLocation(geoCoordinates, tournament.id);
 
     return await this.getTournamentById(tournament.id, userId);
   }
@@ -275,6 +277,8 @@ export class TournamentsService
         user: true,
       },
       where: {
+        isActive: true,
+        isApproved: true,
         participants: { some: { userId } },
         AND: [
           isFinished
@@ -390,7 +394,7 @@ export class TournamentsService
         images: true,
       },
     });
-    // await this.addLocation(geoCoordinates, tournament.id);
+    await this.addLocation(geoCoordinates, tournament.id);
 
     return this.mapToFullModel(tournament, userId);
   }
@@ -506,7 +510,8 @@ export class TournamentsService
     const tournamentStatus = this.computeStatus(tournament);
     if (
       !tournament.isActive ||
-      tournamentStatus === TournamentStatus.FINISHED
+      tournamentStatus === TournamentStatus.FINISHED ||
+      !tournament.isApproved
     ) {
       throw new TournamentNotFoundException();
     }
@@ -598,6 +603,7 @@ export class TournamentsService
       },
       status: this.computeStatus(tournament),
       joinedCreatedAt: tournament.dateSort,
+      isApproved: tournament.isApproved,
     };
   };
 

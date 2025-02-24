@@ -14,7 +14,6 @@ ADD COLUMN     "coordinates" geometry(Point, 4326);
 
 -- DropTable
 DROP TABLE "locations";
-GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)) STORED;
 
 -- CreateIndex
 CREATE INDEX "coordinates_idx" ON "tournaments" USING GIST ("coordinates");

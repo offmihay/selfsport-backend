@@ -71,6 +71,7 @@ model Tournament {
   user            User                                 @relation(name: "TournamentsCreator", fields: [createdBy], references: [id])
   participants    TournamentParticipant[]
   coordinates     Unsupported("geometry(Point, 4326)")?
+  isApproved      Boolean                              @default(false) @map("is_approved")
 
   @@index([coordinates], name: "coordinates_idx", type: Gist)
   @@map("tournaments")
