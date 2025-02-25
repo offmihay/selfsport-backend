@@ -56,6 +56,23 @@ export class UsersService
   }
 
   async deleteUser(data: DeletedObjectJSON) {
+    const tournaments = await this.tournament.findMany({
+      where: {
+        createdBy: data.id,
+      },
+    });
+    const tournamentsId = tournaments.map((t) => t.id);
+    await this.image.deleteMany({
+      where: {
+        tournamentId: { in: tournamentsId },
+      },
+    });
+
+    await this.tournamentParticipant.deleteMany({
+      where: {
+        userId: data.id,
+      },
+    });
     await this.user.delete({
       where: {
         id: data.id,
