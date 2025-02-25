@@ -7,12 +7,16 @@ import { AxiosError } from 'axios';
 type Location = {
   lat: number;
   lng: number;
+  city: string;
+  country: string;
 };
 
 type IpApiResponse = {
   ip: string;
   latitude: number;
   longitude: number;
+  city: string;
+  country_name: string;
 } & Record<string, any>;
 
 const cachedLocations: Map<string, Location> = new Map();
@@ -59,7 +63,12 @@ export class LocationService {
         return undefined;
       }
 
-      return { lat: response.data.latitude, lng: response.data.longitude };
+      return {
+        lat: response.data.latitude,
+        lng: response.data.longitude,
+        city: response.data.city,
+        country: response.data.country_name,
+      };
     } catch (error) {
       this.logger.error(
         `Unexpected error while fetching IP data: ${error.message}`,
