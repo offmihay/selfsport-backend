@@ -73,6 +73,13 @@ export class UsersService
         userId: data.id,
       },
     });
+
+    await this.tournament.deleteMany({
+      where: {
+        createdBy: data.id,
+      },
+    });
+
     await this.user.delete({
       where: {
         id: data.id,
