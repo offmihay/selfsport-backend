@@ -70,7 +70,7 @@ export class UsersService
 
     await this.tournamentParticipant.deleteMany({
       where: {
-        userId: data.id,
+        OR: [{ userId: data.id }, { tournamentId: { in: tournamentsId } }],
       },
     });
 
