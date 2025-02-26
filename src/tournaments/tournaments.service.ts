@@ -217,6 +217,7 @@ export class TournamentsService
     const tournament = await this.tournament.create({
       data: {
         ...rest,
+        isApproved: true,
         latitude: geoCoordinates.latitude,
         longitude: geoCoordinates.longitude,
         minAge: ageRestrictions?.minAge,
@@ -385,7 +386,7 @@ export class TournamentsService
         images: {
           create: transformedimages,
         },
-        isApproved: false,
+        isApproved: true,
       },
       include: {
         participants: {
